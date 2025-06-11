@@ -1,0 +1,74 @@
+* {
+  padding: 0;
+  margin: 0;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+a {
+  font-size: 2.25rem;
+  padding: 1.5rem 4.5rem;
+  color: #f4f4f4;
+  text-transform: uppercase;
+}
+
+.button {
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  padding: 15px 30px;
+  color: white;
+  cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 21px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-transform: uppercase;
+  height: 75px;
+}
+
+.button:hover {
+  box-shadow: 1.5px 1.5px 37.5px 15px rgba(146, 148, 248, 0.2);
+}
+
+.button:before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(146, 148, 248, 0.4),
+    transparent
+  );
+  transition: all 250ms;
+}
+
+.button:hover:before {
+  left: 100%;
+}
+
+/* Контейнер для шапки сайта */
+.header-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+}
+
+/* Контейнер для группы кнопок */
+.button-container {
+  display: flex;
+  align-items: center;
+  margin-left: 30px;
+}

@@ -1,0 +1,70 @@
+import express from 'express';
+import cors from 'cors';
+import { register, login, verifyToken } from './database/auth.js';
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Middleware для проверки токена
+const authMiddleware = (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ message: 'Токен не предоставлен' });
+    }
+    
+    const decoded = verifyToken(token);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Неверный токен' });
+  }
+};
+
+// Маршруты
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: 'Все поля обязательны для заполнения' });
+    }
+    
+    const result = await register(username, email, password);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Все поля обязательны для заполнения' });
+    }
+    
+    const result = await login(username, password);
+    res.json(result);
+  } catch (error) {
+    res.status(401).json({ message: error.message });
+  }
+});
+
+// Защищенный маршрут для проверки аутентификации
+app.get('/api/profile', authMiddleware, (req, res) => {
+  res.json({ user: req.user });
+});
+
+// Запуск сервера
+app.listen(PORT, () => {
+  console.log(`Сервер запущен на порту ${PORT}`);
+});
+
+export default app; 

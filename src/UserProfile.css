@@ -1,0 +1,272 @@
+body.user-profile-page {
+    margin-top: 0;
+    background:#eee;
+}
+
+.user-profile .container {
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.user-profile .content {
+    width: 100%;
+}
+
+.user-profile .header-container {
+    margin-bottom: 0;
+    position: relative;
+    z-index: 1000;
+    background-color: #000;
+    display: flex;
+    align-items: center;
+    padding: 5px 15px;
+}
+
+.user-profile .button-container {
+    display: flex;
+    margin-left: 20px;
+}
+
+.user-profile .search-wrapper {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+.user-profile .home-link {
+    margin-left: 15px;
+}
+
+.user-profile .line {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.profile-header {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    margin-top: 0;
+}
+
+.profile-header .ph-cover {
+    background-image: url(https://bootdey.com/img/Content/bg1.jpg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0
+}
+
+.profile-header .ph-cover:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, .75) 100%)
+}
+
+.profile-header .ph-content {
+    color: #fff;
+    padding: 25px;
+    position: relative;
+    z-index: 20;
+    height: 140px;
+    border-bottom: 2px solid aqua;
+    box-shadow: 0 0 10px 0 (0, 0, 0, 0.5);
+    bottom: 10px;
+}
+
+.ph-img {
+    float: left;
+    width: 120px;
+    height: 120px;
+    overflow: hidden;
+    position: relative;
+    z-index: 10;
+    margin: 0 0 -20px;
+    padding: 3px;
+    border-radius: 4px;
+    background: #fff
+}
+
+.ph-img img {
+    max-width: 100%
+}
+
+.ph-info {
+    position: relative;
+    z-index: 20;
+}
+
+.ph-info h4 {
+    font-weight: 500;
+    color: #fff
+}
+
+.ph-img+.ph-info {
+    margin-left: 140px
+}
+
+.profile-header .ph-content,
+.profile-header .ph-tab {
+    position: relative
+}
+
+.profile-header .ph-tab {
+    background: #fff;
+    list-style-type: none;
+    margin: -10px 0 0;
+    padding: 0 0 0 140px;
+    white-space: nowrap;
+    border-radius: 0;
+    width: 100%;
+    position: relative;
+    z-index: 10;
+    display: flex;
+}
+
+.text-ellipsis,
+.text-nowrap {
+    white-space: nowrap!important
+}
+
+.profile-header .ph-tab>li {
+    display: inline-block;
+    margin: 0
+}
+
+.profile-header .ph-tab>li>a,
+.profile-header .ph-tab>button {
+    display: block;
+    color: #929ba1;
+    line-height: 20px;
+    padding: 10px 20px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.profile-header .ph-tab>li.active>a,
+.profile-header .ph-tab>li>a.active,
+.profile-header .ph-tab>button.active,
+.profile-header .ph-tab>button.active.show {
+    color: #242a30;
+    border-bottom: 2px solid #242a30;
+}
+
+.profile {
+    width: 100%;
+    position: relative;
+    top: 0;
+}
+
+.nav-link_ {
+    display: block;
+    color: #929ba1;
+    line-height: 20px;
+    padding: 10px 20px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+    transition: color 0.3s ease, border-bottom 0.3s ease;
+}
+
+.nav-link_.active.show {
+  /* существующие стили */
+  position: relative;
+}
+
+.nav-link_.active.show::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #242a30;
+  transform: scaleX(0);
+  animation: slideIn 0.5s forwards;
+}
+
+@keyframes slideIn {
+  from {
+      transform: scaleX(0);
+  }
+  to {
+      transform: scaleX(1);
+  }
+}
+
+.btn {
+    display: inline-block;
+    padding: 6px 12px;
+    margin-bottom: 0;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.42857143;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    cursor: pointer;
+    background-image: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 3px;
+}
+
+.btn-info {
+    color: #fff;
+    background-color: #5bc0de;
+    border-color: #46b8da;
+}
+
+.btn-info:hover {
+    color: #fff;
+    background-color: #31b0d5;
+    border-color: #269abc;
+}
+
+.mb-2 {
+    margin-bottom: 8px;
+}
+
+.ph-tab {
+    display: flex;
+    padding: 0 0 0 140px;
+    margin: -10px 0 0;
+    background: #fff;
+    width: 100%;
+}
+
+.ph-tab button {
+    margin-right: 5px;
+}
+
+.user-profile .logo {
+    height: auto;
+    width: 175px;
+    margin-bottom: -5px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 5px #3a9ad9);
+}
+
