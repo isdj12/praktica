@@ -97,13 +97,7 @@ function Register() {
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Email:</label>
-              <input 
-                type="email" 
-                placeholder="Введите email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required
-              />
+              <input type="email" placeholder="Введите email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="form-group">
               <label>Придумайте логин:</label>
