@@ -101,13 +101,7 @@ function Register() {
             </div>
             <div className="form-group">
               <label>Придумайте логин:</label>
-              <input 
-                type="text" 
-                placeholder="Введите логин" 
-                value={login} 
-                onChange={(e) => setLogin(e.target.value)} 
-                required
-              />
+              <input type="text" placeholder="Введите логин" value={login} onChange={(e) => setLogin(e.target.value)} required />
             </div>
             <div className="form-group">
               <label>Пароль:</label>
