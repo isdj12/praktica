@@ -115,8 +115,7 @@ function Register() {
             </div>
             <div className="form-group">
               <label>Повторите пароль:</label>
-              <input 
-                type="password" 
+              <input type="password" 
                 placeholder="Повторите пароль" 
                 value={confirmPassword} 
                 onChange={(e) => setConfirmPassword(e.target.value)} 
