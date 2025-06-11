@@ -109,12 +109,7 @@ function Register() {
             </div>
             <div className="form-group">
               <label>Повторите пароль:</label>
-              <input type="password" 
-                placeholder="Повторите пароль" 
-                value={confirmPassword} 
-                onChange={(e) => setConfirmPassword(e.target.value)} 
-                required
-              />
+              <input type="password" placeholder="Повторите пароль" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
             </div>
             <div className="form-buttons">
               <button type="submit" className="button register-button" disabled={isLoading}>
