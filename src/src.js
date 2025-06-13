@@ -1,14 +1,14 @@
 export const button = [
     { 
         text: "главная",
-        href: "https://www.google.com"
+        href: "/"
     },
     { 
         text: "каталог",
-        href: "https://www.yandex.ru"
+        href: "/katalog"
     },
     { 
         text: "случайная игра",
-        href: "https://www.yandex.ru"
+        href: "/katalog"
     },
 ]

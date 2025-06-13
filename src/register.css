@@ -46,11 +46,11 @@
   
 
 .login-page {
-  background-size: 100% 100%;
+  background-size: cover;
   background-repeat: no-repeat;
-  background-position: top;
-  background-attachment: scroll;
-  min-height: calc(100vh - 71px);
+  background-position: center;
+  background-attachment: fixed;
+  min-height: 100vh;
   height: auto;
   width: 100%;
   display: flex;
@@ -58,7 +58,7 @@
   align-items: center;
   margin: 0;
   padding: 0;
-  margin-top: 71px;
+  padding-top: 71px;
   position: relative;
   z-index: 1;
   overflow: hidden;

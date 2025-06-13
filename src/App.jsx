@@ -100,6 +100,7 @@ function App() {
       </div>
       <hr className='line'></hr>
       <div className="replacement-block">
+        <a href="/">
         <div className={`games-grid ${isTransitioning ? 'fade-out' : 'fade-in'}`}>
           {getCurrentPageGames().map((game) => (
             <div key={game.id} className="game-card-container">
@@ -112,6 +113,7 @@ function App() {
             </div>
           ))}
         </div>
+        </a>
         <button className="nav-arrow nav-arrow-left" onClick={handlePrevClick} disabled={isTransitioning} aria-label="Предыдущая страница">
           <img src={strellka} alt="Назад" className="arrow-icon arrow-left" />
         </button>
@@ -120,11 +122,7 @@ function App() {
         </button>
         <div className="pagination">
           {Array.from({ length: totalPages }).map((_, index) => (
-            <span 
-              key={index} 
-              className={`pagination-dot ${index === currentPage ? 'active' : ''}`}
-              onClick={() => handlePageChange(index)}
-            ></span>
+            <span key={index} className={`pagination-dot ${index === currentPage ? 'active' : ''}`} onClick={() => handlePageChange(index)}></span>
           ))}
         </div>
       </div>

@@ -1,0 +1,43 @@
+.katalog-page {
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
+  min-height: 100vh;
+  height: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  padding: 20px;
+  padding-top: 91px; /* 71px (высота шапки) + 20px отступ */
+  position: relative;
+  z-index: 1;
+  color: white;
+}
+
+.katalog-page h1 {
+  font-size: 32px;
+  margin-bottom: 20px;
+  color: #3a9ad9;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+}
+
+.katalog-content {
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 20px;
+  border-radius: 10px;
+  width: 80%;
+  max-width: 1200px;
+  box-shadow: 0 0 15px rgba(58, 154, 217, 0.7);
+  border: 1px solid #3a9ad9;
+}
+
+/* Переопределяем стиль body только для этой страницы */
+body {
+  background-image: url(./assets/fon.jpeg);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+} 

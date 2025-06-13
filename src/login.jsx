@@ -84,9 +84,6 @@ function Login() {
         </div>
         <div className="search-wrapper">
           <Poisk />
-          <div className="home-link">
-            <Link to="/">На главную</Link>
-          </div>
         </div>
       </div>
       <hr className='line'></hr>
@@ -97,23 +94,11 @@ function Login() {
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Логин:</label>
-              <input 
-                type="text" 
-                placeholder="Введите логин" 
-                value={login} 
-                onChange={(e) => setLogin(e.target.value)} 
-                required
-              />
+              <input type="text" placeholder="Введите логин" value={login} onChange={(e) => setLogin(e.target.value)} required />
             </div>
             <div className="form-group">
               <label>Пароль:</label>
-              <input 
-                type="password" 
-                placeholder="Введите пароль" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required
-              />
+              <input type="password" placeholder="Введите пароль" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             <div className="form-buttons">
               <button type="submit" className="button login-button" disabled={isLoading}>

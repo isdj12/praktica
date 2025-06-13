@@ -7,6 +7,7 @@ import Fhod from './fhod.jsx'
 import Login from './login.jsx'
 import Register from './register.jsx'
 import UserProfile from './UserProfile.jsx'
+import Katalog from './katallog.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<UserProfile />} />
         <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/katalog" element={<Katalog />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,

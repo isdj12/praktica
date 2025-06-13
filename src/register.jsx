@@ -115,9 +115,6 @@ function Register() {
               <button type="submit" className="button register-button" disabled={isLoading}>
                 {isLoading ? 'Регистрация...' : 'регистрация'}
               </button>
-              <div className="login-link">
-                <Link to="/login">Уже есть аккаунт? Войти</Link>
-              </div>
             </div>
           </form>
         </div>
