@@ -35,9 +35,33 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ message: 'Все поля обязательны для заполнения' });
     }
     
+    // Проверка формата email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Некорректный формат email' });
+    }
+    
+    // Проверка сложности пароля
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Пароль должен содержать не менее 6 символов' });
+    }
+    
     const result = await register(username, email, password);
     res.status(201).json(result);
   } catch (error) {
+    console.error('Ошибка регистрации:', error);
+    
+    // Обработка ошибок SQLite
+    if (error.message.includes('UNIQUE constraint failed')) {
+      if (error.message.includes('users.username')) {
+        return res.status(400).json({ message: 'Пользователь с таким именем уже существует' });
+      }
+      if (error.message.includes('users.email')) {
+        return res.status(400).json({ message: 'Пользователь с таким email уже существует' });
+      }
+      return res.status(400).json({ message: 'Пользователь с такими данными уже существует' });
+    }
+    
     res.status(500).json({ message: error.message });
   }
 });

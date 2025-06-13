@@ -9,6 +9,16 @@ import { dbAsync } from './db.js';
  */
 export async function registerUser(username, email, password) {
   try {
+    // Проверяем, существует ли уже пользователь с таким именем или email
+    const existingUser = await dbAsync.get(
+      'SELECT id FROM users WHERE username = ? OR email = ?',
+      [username, email]
+    );
+    
+    if (existingUser) {
+      throw new Error('Пользователь с таким именем или email уже существует');
+    }
+    
     const result = await dbAsync.run(
       'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
       [username, email, password]
