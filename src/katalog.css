@@ -1,17 +1,23 @@
+.katalog-container {
+  display: flex;
+  width: 100%;
+  gap: 20px;
+  padding-top: 91px; /* 71px (высота шапки) + 20px отступ */
+  min-height: 100vh;
+}
+
 .katalog-page {
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
   background-attachment: fixed;
-  min-height: 100vh;
   height: auto;
-  width: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   margin: 0;
   padding: 20px;
-  padding-top: 91px; /* 71px (высота шапки) + 20px отступ */
   position: relative;
   z-index: 1;
   color: white;
@@ -28,10 +34,130 @@
   background-color: rgba(0, 0, 0, 0.7);
   padding: 20px;
   border-radius: 10px;
-  width: 80%;
-  max-width: 1200px;
+  width: 100%;
+  max-width: none;
   box-shadow: 0 0 15px rgba(58, 154, 217, 0.7);
   border: 1px solid #3a9ad9;
+  height: 1150px;
+  padding-right: 30px;
+  flex: 1;
+}
+
+.filter {
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 20px;
+  border-radius: 10px;
+  width: 250px;
+  max-width: 1050px;
+  min-width: 250px;
+  box-shadow: 0 0 15px rgba(58, 154, 217, 0.7);
+  border: 1px solid #3a9ad9;
+  height: fit-content;
+  margin-left: 20px;
+  align-self: flex-start;
+  position: sticky;
+  top: 91px;
+  color: white;
+}
+
+.filter h3 {
+  color: #3a9ad9;
+  margin-bottom: 20px;
+  text-align: center;
+  border-bottom: 1px solid #3a9ad9;
+  padding-bottom: 10px;
+}
+
+/* Стили для группы фильтров */
+.filter-group {
+  margin-bottom: 20px;
+}
+
+.filter-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #3a9ad9;
+}
+
+/* Стили для выпадающего списка */
+.dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: rgba(58, 154, 217, 0.2);
+  border: 1px solid #3a9ad9;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.dropdown-header:hover {
+  background-color: rgba(58, 154, 217, 0.3);
+}
+
+.dropdown-arrow {
+  color: #3a9ad9;
+  font-size: 12px;
+}
+
+.dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  border: 1px solid #3a9ad9;
+  border-radius: 0 0 5px 5px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 10;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  scrollbar-width: thin;
+  scrollbar-color: #3a9ad9 rgba(0, 0, 0, 0.5);
+}
+
+.dropdown-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dropdown-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0 0 5px 0;
+}
+
+.dropdown-list::-webkit-scrollbar-thumb {
+  background-color: #3a9ad9;
+  border-radius: 4px;
+}
+
+.dropdown-list li {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid rgba(58, 154, 217, 0.2);
+}
+
+.dropdown-list li:last-child {
+  border-bottom: none;
+}
+
+.dropdown-list li:hover {
+  background-color: rgba(58, 154, 217, 0.3);
+}
+
+.dropdown-list li.selected {
+  background-color: rgba(58, 154, 217, 0.5);
+  font-weight: bold;
 }
 
 /* Переопределяем стиль body только для этой страницы */

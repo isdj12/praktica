@@ -6,10 +6,15 @@ import Profile from './component/profile.jsx'
 import original from './assets/original.png'
 import { useState, useEffect } from 'react'
 import './katalog.css'
+import { filter, genres, tegs } from './database/FILTER.js'
 
 function Katalog() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [isGenreOpen, setIsGenreOpen] = useState(false);
+  const [isTagOpen, setIsTagOpen] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState('Все жанры');
+  const [selectedTag, setSelectedTag] = useState('Все теги');
   
   // Проверяем, есть ли сохраненный пользователь при загрузке
   useEffect(() => {
@@ -28,6 +33,18 @@ function Katalog() {
     localStorage.removeItem('token');
   };
 
+  // Функция для выбора жанра
+  const selectGenre = (genre) => {
+    setSelectedGenre(genre);
+    setIsGenreOpen(false);
+  };
+
+  // Функция для выбора тега
+  const selectTag = (tag) => {
+    setSelectedTag(tag);
+    setIsTagOpen(false);
+  };
+
   return (
     <>
       <div className="header-container">
@@ -43,10 +60,59 @@ function Katalog() {
         </div>
       </div>
       <hr className='line'></hr>
-      <div className="katalog-page">
-        <h1>Каталог игр</h1>
-        <div className="katalog-content">
-          <p>Здесь будет содержимое каталога игр</p>
+      
+      <div className="katalog-container">
+        <div className='filter'>
+          <h3>Фильтры</h3>
+          
+          <div className="filter-group">
+            <label>Жанр:</label>
+            <div className="dropdown">
+              <div className="dropdown-header" onClick={() => setIsGenreOpen(!isGenreOpen)}>
+                <span>{selectedGenre}</span>
+                <span className="dropdown-arrow">{isGenreOpen ? '▲' : '▼'}</span>
+              </div>
+              
+              {isGenreOpen && (
+                <ul className="dropdown-list">
+                  {genres.map((genre, index) => (
+                    <li key={index} onClick={() => selectGenre(genre)} className={selectedGenre === genre ? 'selected' : ''}>
+                      {genre}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+          
+          <div className="filter-group">
+            <label>Тэги:</label>
+            <div className="dropdown">
+              <div className="dropdown-header" onClick={() => setIsTagOpen(!isTagOpen)}>
+                <span>{selectedTag}</span>
+                <span className="dropdown-arrow">{isTagOpen ? '▲' : '▼'}</span>
+              </div>
+              
+              {isTagOpen && (
+                <ul className="dropdown-list">
+                  {tegs.map((tag, index) => (
+                    <li key={index} onClick={() => selectTag(tag)} className={selectedTag === tag ? 'selected' : ''}>
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>  
+          
+        </div>
+        
+        <div className="katalog-page">
+          <div className="katalog-content">
+            <p>Здесь будет содержимое каталога игр</p>
+            <p>Выбранный жанр: {selectedGenre}</p>
+            <p>Выбранный тег: {selectedTag}</p>
+          </div>
         </div>
       </div>
     </>
