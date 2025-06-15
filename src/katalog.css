@@ -4,9 +4,11 @@
   gap: 20px;
   padding-top: 91px; /* 71px (высота шапки) + 20px отступ */
   min-height: 100vh;
+  background-color: transparent;
 }
 
 .katalog-page {
+  background-color: transparent;
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
@@ -21,6 +23,8 @@
   position: relative;
   z-index: 1;
   color: white;
+  border-radius: 10px;
+  box-shadow: none;
 }
 
 .katalog-page h1 {
@@ -31,32 +35,35 @@
 }
 
 .katalog-content {
-  background-color: rgba(0, 0, 0, 0.7);
-  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.85);
+  padding: 30px;
   border-radius: 10px;
   width: 100%;
   max-width: none;
-  box-shadow: 0 0 15px rgba(58, 154, 217, 0.7);
-  border: 1px solid #3a9ad9;
-  height: 1150px;
-  padding-right: 30px;
+  box-shadow: 0 0 25px rgba(58, 154, 217, 0.9);
+  border: 3px solid #3a9ad9;
+  height: auto;
+  min-height: 600px;
   flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
 }
 
 .filter {
   background-color: rgba(0, 0, 0, 0.7);
   padding: 20px;
-  border-radius: 10px;
   width: 250px;
   max-width: 1050px;
   min-width: 250px;
   box-shadow: 0 0 15px rgba(58, 154, 217, 0.7);
   border: 1px solid #3a9ad9;
   height: fit-content;
-  margin-left: 20px;
   align-self: flex-start;
   position: sticky;
-  top: 91px;
+  top: 0;
+  margin-top: -19px;
   color: white;
 }
 
@@ -191,6 +198,7 @@ body {
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
+  background-color: #000000; /* Добавляем черный фон на случай, если изображение не загрузится */
 }
 
 .rating-container {
@@ -261,4 +269,91 @@ body {
   text-align: center;
   text-shadow: 0 0 5px rgba(139, 195, 74, 0.7);
   font-size: 14px;
+}
+
+.accept {
+  display: flex;
+  justify-content: space-between;
+  color: white;
+  padding: 8px 12px;
+  background-color: rgba(58, 154, 217, 0.2);
+  border: 1px solid #3a9ad9;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.game-card {
+  width: 400px;
+  height: 380px;
+  background-color: rgba(0, 0, 0, 0.9);
+  border: 3px solid #3a9ad9;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(58, 154, 217, 0.8);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.game-card-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-bottom: 2px solid #3a9ad9;
+}
+
+.game-card-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.game-card-title {
+  color: #3a9ad9;
+  font-size: 22px;
+  font-weight: bold;
+  margin: 0;
+  text-shadow: 0 0 10px rgba(58, 154, 217, 0.7);
+}
+
+.game-card-description {
+  color: #ffffff;
+  font-size: 16px;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.game-card-rating {
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+}
+
+.game-card-rating-stars {
+  color: gold;
+  margin-right: 10px;
+  font-size: 18px;
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.7);
+}
+
+.game-card-genre {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #3a9ad9;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: bold;
+  border: 2px solid #3a9ad9;
+  box-shadow: 0 0 10px rgba(58, 154, 217, 0.7);
 }
