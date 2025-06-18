@@ -4,11 +4,11 @@
   gap: 20px;
   padding-top: 91px; /* 71px (высота шапки) + 20px отступ */
   min-height: 100vh;
-  background-color: transparent;
+  background-color: rgba(0, 0, 0, 0.7); /* Добавляем полупрозрачный черный фон */
 }
 
 .katalog-page {
-  background-color: transparent;
+  background-color: rgba(0, 0, 0, 0.5);
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
@@ -24,7 +24,7 @@
   z-index: 1;
   color: white;
   border-radius: 10px;
-  box-shadow: none;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
 }
 
 .katalog-page h1 {

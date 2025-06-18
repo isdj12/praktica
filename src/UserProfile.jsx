@@ -130,7 +130,8 @@ function UserProfile() {
                 <div className="ph-info">
                   <h4 className="m-t-10 m-b-5">{user.username || user.login}</h4>
                   <p className="m-b-10">{user.email ? user.email : 'Пользователь'}</p>
-                  <button className="btn btn-sm btn-info mb-2" onClick={handleLogout}>Выйти из аккаунта</button>
+                  <button className="btn sm prim m-b m-r" onClick={() => navigate('/add-game')}>Добавить игру</button>
+                  <button className="btn sm info m-b" onClick={handleLogout}>Выйти из аккаунта</button>
                 </div>
               </div>
               <div className="ph-tab nav nav-tabs">

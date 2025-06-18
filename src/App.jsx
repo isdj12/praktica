@@ -6,8 +6,10 @@ import Profile from './component/profile.jsx'
 import original from './assets/original.png'
 import strellka from './assets/strellka.svg'
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 function App() {
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -84,6 +86,11 @@ function App() {
     handlePageChange(newPage);
   };
 
+  // Функция для перехода на страницу игры
+  const handleGameClick = (gameId) => {
+    navigate(`/game?id=${gameId}`);
+  };
+
   return (
     <>
       <div className="header-container">
@@ -100,10 +107,9 @@ function App() {
       </div>
       <hr className='line'></hr>
       <div className="replacement-block">
-        <a href="/">
         <div className={`games-grid ${isTransitioning ? 'fade-out' : 'fade-in'}`}>
           {getCurrentPageGames().map((game) => (
-            <div key={game.id} className="game-card-container">
+            <div key={game.id} className="game-card-container" onClick={() => handleGameClick(game.id)}>
               <div className="game-indicator">
                 <div className="game-title-bar">{game.title}</div>
                 <div className='game-indicator-foto'>
@@ -113,7 +119,6 @@ function App() {
             </div>
           ))}
         </div>
-        </a>
         <button className="nav-arrow nav-arrow-left" onClick={handlePrevClick} disabled={isTransitioning} aria-label="Предыдущая страница">
           <img src={strellka} alt="Назад" className="arrow-icon arrow-left" />
         </button>
