@@ -7,6 +7,8 @@ import original from './assets/original.png'
 import { useState, useEffect } from 'react'
 import './katalog.css'
 import { filter, genres, tegs } from './database/FILTER.js'
+import { fetchGames } from './api.js'
+import { Link } from 'react-router-dom'
 
 function Katalog() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -20,58 +22,31 @@ function Katalog() {
   const [selectedTag2, setSelectedTag2] = useState('Все теги');
   const [selectedTag3, setSelectedTag3] = useState('Все теги');
   const [rating, setRating] = useState(0);
+  const [games, setGames] = useState([]);
+  const [filteredGames, setFilteredGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
-  // Примеры игр для демонстрации
-  const gamesList = [
-    {
-      id: 1,
-      title: "Cyberpunk 2077",
-      description: "Ролевая игра с открытым миром в стиле киберпанк от создателей серии The Witcher.",
-      image: "https://upload.wikimedia.org/wikipedia/ru/b/bb/%D0%9E%D0%B1%D0%BB%D0%BE%D0%B6%D0%BA%D0%B0_%D0%BA%D0%BE%D0%BC%D0%BF%D1%8C%D1%8E%D1%82%D0%B5%D1%80%D0%BD%D0%BE%D0%B9_%D0%B8%D0%B3%D1%80%D1%8B_Cyberpunk_2077.jpg",
-      rating: 4,
-      genre: "Ролевые игры (RPG)"
-    },
-    {
-      id: 2,
-      title: "Elden Ring",
-      description: "Экшен-RPG с открытым миром, созданная FromSoftware и Джорджем Мартином.",
-      image: "https://upload.wikimedia.org/wikipedia/ru/thumb/4/4d/Elden_ring_cover.jpg/274px-Elden_ring_cover.jpg",
-      rating: 5,
-      genre: "Ролевые игры (RPG)"
-    },
-    {
-      id: 3,
-      title: "Counter-Strike 2",
-      description: "Популярный многопользовательский шутер от первого лица от Valve.",
-      image: "https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg",
-      rating: 4,
-      genre: "Шутеры от первого лица (FPS)"
-    },
-    {
-      id: 4,
-      title: "Minecraft",
-      description: "Песочница с элементами выживания и возможностью строить всё что угодно.",
-      image: "https://upload.wikimedia.org/wikipedia/ru/4/49/Minecraft_cover.png",
-      rating: 5,
-      genre: "Песочница"
-    },
-    {
-      id: 5,
-      title: "The Witcher 3",
-      description: "Ролевая игра с открытым миром, основанная на серии книг Анджея Сапковского.",
-      image: "https://upload.wikimedia.org/wikipedia/ru/9/9c/Witcher_3_cover.jpg",
-      rating: 5,
-      genre: "Ролевые игры (RPG)"
-    },
-    {
-      id: 6,
-      title: "Grand Theft Auto V",
-      description: "Экшен-игра с открытым миром от Rockstar Games, действие которой происходит в вымышленном городе Лос-Сантос.",
-      image: "https://upload.wikimedia.org/wikipedia/ru/c/c8/GTAV_Official_Cover_Art.jpg",
-      rating: 5,
-      genre: "Экшен"
-    }
-  ];
+  // Загрузка игр из API
+  useEffect(() => {
+    const loadGames = async () => {
+      try {
+        setLoading(true);
+        const gamesData = await fetchGames();
+        console.log('Загруженные игры:', gamesData);
+        setGames(gamesData);
+        setFilteredGames(gamesData); // Изначально показываем все игры
+        setError(null);
+      } catch (err) {
+        console.error('Ошибка при загрузке игр:', err);
+        setError('Не удалось загрузить игры. Пожалуйста, попробуйте позже.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadGames();
+  }, []);
   
   // Проверяем, есть ли сохраненный пользователь при загрузке
   useEffect(() => {
@@ -119,22 +94,54 @@ function Katalog() {
     setRating(value);
   };
   
-  // Функция для обработки клика по карточке игры
-  const handleGameClick = (gameId) => {
-    console.log(`Переход на страницу игры с ID: ${gameId}`);
-    // Здесь будет логика перехода на страницу игры
+  // Функция для форматирования даты
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Не указана';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString();
+    } catch (error) {
+      return 'Не указана';
+    }
   };
   
-  // Функция для отображения звездочек рейтинга
-  const renderRatingStars = (rating) => {
-    let stars = '';
-    for (let i = 0; i < rating; i++) {
-      stars += '★';
-    }
-    for (let i = rating; i < 5; i++) {
-      stars += '☆';
-    }
-    return stars;
+  // Функция для применения фильтров
+  const applyFilters = () => {
+    const filtered = games.filter(game => {
+      // Фильтрация по жанру
+      if (selectedGenre !== 'Все жанры' && game.genre !== selectedGenre) {
+        return false;
+      }
+      
+      // Фильтрация по тегам
+      const gameTags = game.tags || [];
+      if (selectedTag1 !== 'Все теги' && !gameTags.includes(selectedTag1)) {
+        return false;
+      }
+      if (selectedTag2 !== 'Все теги' && !gameTags.includes(selectedTag2)) {
+        return false;
+      }
+      if (selectedTag3 !== 'Все теги' && !gameTags.includes(selectedTag3)) {
+        return false;
+      }
+      
+      // Фильтрация по рейтингу
+      if (rating > 0 && (!game.rating || game.rating < rating)) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    setFilteredGames(filtered);
+    console.log("Применены фильтры:", {
+      жанр: selectedGenre,
+      тег1: selectedTag1,
+      тег2: selectedTag2,
+      тег3: selectedTag3,
+      рейтинг: rating
+    });
   };
 
   return (
@@ -251,39 +258,75 @@ function Katalog() {
               <input type="radio" id="star1" name="rating" value="1" checked={rating === 1} onChange={() => handleRatingChange(1)}/>
               <label htmlFor="star1" title="1 звезда"></label>
             </div>
-            <button className='accept' onClick={() => {
-              // Здесь можно добавить логику применения фильтров
-              console.log("Применяем фильтры:", {
-                жанр: selectedGenre,
-                тег1: selectedTag1,
-                тег2: selectedTag2,
-                тег3: selectedTag3,
-                рейтинг: rating
-              });
-            }}>Применить</button>
+            <button className='accept' onClick={applyFilters}>Применить</button>
+            <button className='reset' onClick={() => {
+              setSelectedGenre('Все жанры');
+              setSelectedTag1('Все теги');
+              setSelectedTag2('Все теги');
+              setSelectedTag3('Все теги');
+              setRating(0);
+              setFilteredGames(games);
+            }}>Сбросить</button>
           </div>
         </div>
         
         <div className="katalog-page">
           <div className="katalog-content">
-            {gamesList.map(game => (
-              <div key={game.id} className="game-card" onClick={() => handleGameClick(game.id)}>
-                <div className="game-card-genre">{game.genre}</div>
-                <img src={game.image} alt={game.title} className="game-card-image" onError={(e) => {
-                  e.target.onerror = null;
-                    e.target.src = "https://via.placeholder.com/300x200?text=Изображение+не+найдено";
-                  }}
-                />
-                <div className="game-card-content">
-                  <h3 className="game-card-title">{game.title}</h3>
-                  <p className="game-card-description">{game.description}</p>
-                  <div className="game-card-rating">
-                    <span className="game-card-rating-stars">{renderRatingStars(game.rating)}</span>
-                    <span style={{ color: 'white', fontWeight: 'bold' }}>{game.rating}/5</span>
-                  </div>
-                </div>
+            {loading ? (
+              <div className="loading-message">Загрузка игр...</div>
+            ) : error ? (
+              <div className="error-message">{error}</div>
+            ) : filteredGames.length === 0 ? (
+              <div className="no-games-message">
+                {games.length === 0 ? 
+                  'В каталоге пока нет игр. Добавьте первую игру через свой профиль!' : 
+                  'Нет игр, соответствующих выбранным фильтрам.'}
               </div>
-            ))}
+            ) : (
+              filteredGames.map(game => (
+                <div key={game.id} className="game-card">
+                  <Link to={`/game?id=${game.id}`} className="game-card-link">
+                    <div className="game-card-image-container">
+                      <div className="game-card-genre">{game.genre}</div>
+                      <img 
+                        src={game.image} 
+                        alt={game.name} 
+                        className="game-card-image" 
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://via.placeholder.com/300x150?text=Нет+фото";
+                        }}
+                      />
+                    </div>
+                    <div className="game-card-content">
+                      <h3 className="game-card-title">{game.name}</h3>
+                      
+                      <div className="game-card-details">
+                        <div className="game-card-detail">
+                          <span className="detail-label">Платформа:</span>
+                          <span className="detail-value">{game.platform || 'Не указана'}</span>
+                        </div>
+                        <div className="game-card-detail">
+                          <span className="detail-label">Дата:</span>
+                          <span className="detail-value">{formatDate(game.releaseDate)}</span>
+                        </div>
+                      </div>
+                      
+                      <p className="game-card-description">
+                        {game.description && game.description.length > 45 
+                          ? `${game.description.substring(0, 45)}...` 
+                          : game.description || 'Описание отсутствует'}
+                      </p>
+                      <div className="game-card-tags">
+                        {game.tags && game.tags.slice(0, 2).map((tag, index) => (
+                          <span key={index} className="game-card-tag">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -291,4 +334,4 @@ function Katalog() {
   )
 }
 
-export default Katalog
+export default Katalog 

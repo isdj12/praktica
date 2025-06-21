@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { register, login, verifyToken } from './database/auth.js';
 import { addGameToUserProfile, getUserGames, removeGameFromUserProfile, isGameInUserProfile } from './database/userGames.js';
-import { addGame } from './database/games.js';
+import { addGame, getAllGames, getGameById } from './database/games.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -281,6 +281,34 @@ app.post('/api/games', authMiddleware, upload.fields([
     }
   } catch (error) {
     console.error('Ошибка при добавлении игры в каталог:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Получение списка всех игр
+app.get('/api/games', async (req, res) => {
+  try {
+    const games = await getAllGames();
+    res.json(games);
+  } catch (error) {
+    console.error('Ошибка при получении списка игр:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Получение информации об одной игре по ID
+app.get('/api/games/:id', async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const game = await getGameById(gameId);
+    
+    if (!game) {
+      return res.status(404).json({ message: 'Игра не найдена' });
+    }
+    
+    res.json(game);
+  } catch (error) {
+    console.error(`Ошибка при получении игры с ID ${req.params.id}:`, error);
     res.status(500).json({ message: error.message });
   }
 });

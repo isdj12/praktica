@@ -7,7 +7,7 @@ import Fhod from './fhod.jsx'
 import Login from './login.jsx'
 import Register from './register.jsx'
 import UserProfile from './UserProfile.jsx'
-import Katalog from './katallog.jsx'
+import Katalog from './katalog.jsx'
 import Game from './game.jsx'
 
 // Создаем Layout компонент, который будет содержать общие элементы
