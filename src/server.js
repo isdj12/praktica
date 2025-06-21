@@ -1,13 +1,69 @@
 import express from 'express';
 import cors from 'cors';
 import { register, login, verifyToken } from './database/auth.js';
+import { addGameToUserProfile, getUserGames, removeGameFromUserProfile, isGameInUserProfile } from './database/userGames.js';
+import { addGame } from './database/games.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Создаем директории для загрузки файлов, если они не существуют
+const uploadsDir = path.join(__dirname, '../public/uploads');
+const gameImagesDir = path.join(uploadsDir, 'games');
+const screenshotsDir = path.join(uploadsDir, 'screenshots');
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+if (!fs.existsSync(gameImagesDir)) {
+  fs.mkdirSync(gameImagesDir, { recursive: true });
+}
+if (!fs.existsSync(screenshotsDir)) {
+  fs.mkdirSync(screenshotsDir, { recursive: true });
+}
+
+// Настройка хранилища для загрузки файлов
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Определяем директорию в зависимости от типа файла
+    if (file.fieldname === 'image') {
+      cb(null, gameImagesDir);
+    } else if (file.fieldname.startsWith('screenshot')) {
+      cb(null, screenshotsDir);
+    } else {
+      cb(null, uploadsDir);
+    }
+  },
+  filename: function (req, file, cb) {
+    // Генерируем уникальное имя файла
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB лимит
+  fileFilter: function (req, file, cb) {
+    // Проверяем тип файла
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Только изображения могут быть загружены!'), false);
+    }
+  }
+});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Middleware для проверки токена
 const authMiddleware = (req, res, next) => {
@@ -84,6 +140,149 @@ app.post('/api/login', async (req, res) => {
 // Защищенный маршрут для проверки аутентификации
 app.get('/api/profile', authMiddleware, (req, res) => {
   res.json({ user: req.user });
+});
+
+// Получение списка игр пользователя
+app.get('/api/profile/games', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const games = await getUserGames(userId);
+    res.json(games);
+  } catch (error) {
+    console.error('Ошибка при получении игр пользователя:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Добавление игры в профиль пользователя
+app.post('/api/profile/games', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { gameId, gameName, gameImage } = req.body;
+    
+    if (!gameId || !gameName) {
+      return res.status(400).json({ message: 'ID и название игры обязательны' });
+    }
+    
+    const game = await addGameToUserProfile(userId, gameId, gameName, gameImage);
+    res.status(201).json(game);
+  } catch (error) {
+    console.error('Ошибка при добавлении игры в профиль:', error);
+    
+    if (error.message.includes('Эта игра уже добавлена')) {
+      return res.status(400).json({ message: error.message });
+    }
+    
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Удаление игры из профиля пользователя
+app.delete('/api/profile/games/:gameId', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const gameId = req.params.gameId;
+    
+    const success = await removeGameFromUserProfile(userId, gameId);
+    
+    if (success) {
+      res.status(200).json({ message: 'Игра успешно удалена из профиля' });
+    } else {
+      res.status(404).json({ message: 'Игра не найдена в профиле' });
+    }
+  } catch (error) {
+    console.error('Ошибка при удалении игры из профиля:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Проверка наличия игры в профиле пользователя
+app.get('/api/profile/games/:gameId', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const gameId = req.params.gameId;
+    
+    const isInProfile = await isGameInUserProfile(userId, gameId);
+    res.json({ isInProfile });
+  } catch (error) {
+    console.error('Ошибка при проверке наличия игры в профиле:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Добавление новой игры в каталог
+app.post('/api/games', authMiddleware, upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'screenshot0', maxCount: 1 },
+  { name: 'screenshot1', maxCount: 1 },
+  { name: 'screenshot2', maxCount: 1 },
+  { name: 'screenshot3', maxCount: 1 },
+  { name: 'screenshot4', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    console.log('Получен запрос на добавление игры:', req.body);
+    console.log('Файлы:', req.files);
+    
+    // Проверяем наличие обязательных полей
+    if (!req.body.name || !req.body.description || !req.body.platform || !req.body.genre || !req.files || !req.files.image) {
+      return res.status(400).json({ message: 'Не все обязательные поля заполнены' });
+    }
+
+    // Формируем данные для новой игры
+    const gameData = {
+      name: req.body.name,
+      description: req.body.description,
+      platform: req.body.platform,
+      multiplayer: req.body.multiplayer || 'Нет',
+      genre: req.body.genre,
+      ageRating: req.body.ageRating || 'Не указан',
+      releaseDate: req.body.releaseDate || null,
+      image: `/uploads/games/${req.files.image[0].filename}`,
+      userId: req.user.id, // ID пользователя, добавившего игру
+      createdAt: new Date().toISOString()
+    };
+
+    // Собираем теги
+    const tags = [];
+    if (req.body.tag1) tags.push(req.body.tag1);
+    if (req.body.tag2) tags.push(req.body.tag2);
+    if (req.body.tag3) tags.push(req.body.tag3);
+    gameData.tags = tags;
+
+    // Собираем скриншоты
+    const screenshots = [];
+    if (req.files) {
+      for (let i = 0; i < 5; i++) {
+        const screenshotField = `screenshot${i}`;
+        if (req.files[screenshotField]) {
+          screenshots.push(`/uploads/screenshots/${req.files[screenshotField][0].filename}`);
+        }
+      }
+    }
+    gameData.screenshots = screenshots;
+
+    try {
+      // Сохраняем игру в локальной базе данных
+      console.log('Сохраняем игру в БД:', gameData);
+      const newGame = await addGame(gameData);
+      
+      // Добавляем игру в профиль пользователя
+      await addGameToUserProfile(
+        req.user.id,
+        newGame.id,
+        newGame.name,
+        newGame.image
+      );
+      
+      res.status(201).json(newGame);
+    } catch (dbError) {
+      console.error('Ошибка при сохранении игры в БД:', dbError);
+      throw new Error(`Ошибка при сохранении игры: ${dbError.message}`);
+    }
+  } catch (error) {
+    console.error('Ошибка при добавлении игры в каталог:', error);
+    res.status(500).json({ message: error.message });
+  }
 });
 
 // Запуск сервера

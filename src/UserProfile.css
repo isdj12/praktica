@@ -325,3 +325,530 @@ body.user-profile-page {
     filter: drop-shadow(0 0 5px #3a9ad9);
 }
 
+/* Стили для вкладок контента */
+.profile-tab-content {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 0 0 5px 5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Стили для секции игр пользователя */
+.user-games-section {
+  margin-top: 20px;
+}
+
+.user-games-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  color: #2c3e50;
+  border-bottom: 2px solid #f1f1f1;
+  padding-bottom: 10px;
+}
+
+/* Сетка игр пользователя */
+.user-games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* Карточка игры */
+.user-game-card {
+  display: flex;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.user-game-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Изображение игры */
+.user-game-image {
+  width: 120px;
+  min-width: 120px;
+  height: 120px;
+  overflow: hidden;
+}
+
+.user-game-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Информация об игре */
+.user-game-info {
+  padding: 15px;
+  flex: 1;
+}
+
+.user-game-info h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.user-game-info p {
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+/* Кнопки действий */
+.user-game-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+/* Сообщение об отсутствии игр */
+.no-games-message {
+  text-align: center;
+  padding: 30px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #ddd;
+}
+
+.no-games-message p {
+  margin-bottom: 15px;
+  color: #7f8c8d;
+}
+
+/* Индикатор загрузки игр */
+.loading-games {
+  text-align: center;
+  padding: 20px;
+  color: #7f8c8d;
+}
+
+/* Стили для кнопок на странице профиля */
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
+  text-align: center;
+  text-decoration: none;
+}
+
+.btn.sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn.prim {
+  background-color: #3498db;
+  color: white;
+}
+
+.btn.prim:hover {
+  background-color: #2980b9;
+}
+
+.btn.info {
+  background-color: #2ecc71;
+  color: white;
+}
+
+.btn.info:hover {
+  background-color: #27ae60;
+}
+
+.btn.dang {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.btn.dang:hover {
+  background-color: #c0392b;
+}
+
+.m-b {
+  margin-bottom: 10px;
+}
+
+.m-r {
+  margin-right: 10px;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .user-games-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .user-game-card {
+    flex-direction: column;
+  }
+  
+  .user-game-image {
+    width: 100%;
+    height: 180px;
+  }
+  
+  .user-game-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .user-game-actions button {
+    width: 100%;
+  }
+}
+
+/* Стили для модального окна добавления игры */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.add-game-modal {
+  background-color: #fff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  padding: 20px;
+  position: relative;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #666;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+.add-game-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-group input.error,
+.form-group textarea.error {
+  border-color: #ff4d4d;
+}
+
+.error-message {
+  color: #ff4d4d;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.tags-container {
+  display: flex;
+  gap: 10px;
+}
+
+.tags-container input {
+  flex: 1;
+}
+
+.image-preview,
+.screenshots-preview {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.image-preview img {
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.screenshots-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.screenshot-item {
+  position: relative;
+  width: 150px;
+  height: 100px;
+}
+
+.screenshot-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.remove-screenshot {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .tags-container {
+    flex-direction: column;
+  }
+  
+  .add-game-modal {
+    width: 95%;
+    padding: 15px;
+  }
+}
+
+/* Стили для выпадающих списков */
+.dropdown-container {
+  position: relative;
+}
+
+.custom-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 250px;
+  overflow-y: auto;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  margin-top: 5px;
+}
+
+.dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+.dropdown-item.selected {
+  background-color: #e6f7ff;
+}
+
+.dropdown-search {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.dropdown-search input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.dropdown-items-container {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.no-results {
+  color: #999;
+  font-style: italic;
+}
+
+/* Стили для выбранных тегов */
+.tags-input {
+  min-height: 40px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  cursor: pointer;
+}
+
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.selected-tag {
+  display: inline-flex;
+  align-items: center;
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin: 2px;
+  font-size: 14px;
+}
+
+.remove-tag {
+  background: none;
+  border: none;
+  color: #666;
+  margin-left: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.remove-tag:hover {
+  color: #ff4d4d;
+}
+
+.placeholder-text {
+  color: #999;
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+}
+
+.tag-checkbox {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  margin-right: 8px;
+  text-align: center;
+  line-height: 16px;
+  font-size: 12px;
+  color: #1890ff;
+}
+
+.tag-item.selected .tag-checkbox {
+  background-color: #1890ff;
+  color: white;
+  border-color: #1890ff;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .dropdown-menu {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 50vh;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1001;
+  }
+  
+  .tags-dropdown {
+    max-height: 60vh;
+  }
+  
+  .dropdown-items-container {
+    max-height: calc(50vh - 60px);
+  }
+}
+

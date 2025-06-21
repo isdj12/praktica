@@ -15,7 +15,7 @@ if (!fs.existsSync(dbDir)) {
 // Инициализация базы данных
 const db = new sqlite3.Database(dbPath);
 
-// Создание таблицы пользователей, если она не существует
+// Создание таблиц, если они не существуют
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -24,6 +24,20 @@ db.serialize(() => {
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  
+  // Создание таблицы связи пользователей и игр
+  db.run(`
+    CREATE TABLE IF NOT EXISTS user_games (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      game_id INTEGER NOT NULL,
+      game_name TEXT NOT NULL,
+      game_image TEXT,
+      added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+      UNIQUE(user_id, game_id)
     )
   `);
   

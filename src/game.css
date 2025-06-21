@@ -426,3 +426,70 @@
   transform: scale(1.05);
   box-shadow: 0 0 10px rgba(58, 154, 217, 0.7);
 }
+
+/* Стили для кнопки добавления в профиль */
+.add-to-profile-container {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.add-to-profile-btn {
+  background-color: #6c5ce7;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  max-width: 250px;
+}
+
+.add-to-profile-btn:hover:not(:disabled) {
+  background-color: #5b4bc9;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(108, 92, 231, 0.3);
+}
+
+.add-to-profile-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(108, 92, 231, 0.3);
+}
+
+.add-to-profile-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.add-to-profile-btn.in-profile {
+  background-color: #27ae60;
+}
+
+/* Стили для сообщений */
+.add-game-message {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  animation: fadeInOut 3s ease;
+}
+
+.add-game-message.success {
+  background-color: rgba(39, 174, 96, 0.2);
+  color: #27ae60;
+  border: 1px solid #27ae60;
+}
+
+.add-game-message.error {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}

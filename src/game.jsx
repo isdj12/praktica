@@ -7,6 +7,7 @@ import Profile from './component/profile.jsx'
 import original from './assets/original.png'
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
+import { addGameToProfile, isGameInProfile } from './api.js'
 
 function Game() {
   const [searchParams] = useSearchParams();
@@ -16,6 +17,9 @@ function Game() {
   const [user, setUser] = useState(null);
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isInProfile, setIsInProfile] = useState(false);
+  const [addingToProfile, setAddingToProfile] = useState(false);
+  const [addGameMessage, setAddGameMessage] = useState(null);
   
   // Функция для выхода из аккаунта
   const handleLogout = () => {
@@ -71,6 +75,22 @@ function Game() {
       setLoading(false);
     }, 500);
   }, [gameId, navigate]);
+  
+  // Проверяем, добавлена ли игра в профиль пользователя
+  useEffect(() => {
+    if (isLoggedIn && game && game.id) {
+      const checkGameInProfile = async () => {
+        try {
+          const result = await isGameInProfile(game.id);
+          setIsInProfile(result);
+        } catch (error) {
+          console.error('Ошибка при проверке наличия игры в профиле:', error);
+        }
+      };
+      
+      checkGameInProfile();
+    }
+  }, [isLoggedIn, game]);
 
   // Функция для отображения звездного рейтинга
   const renderStars = (rating) => {
@@ -89,6 +109,36 @@ function Game() {
     }
     
     return stars.join("");
+  };
+  
+  // Функция для добавления игры в профиль
+  const handleAddToProfile = async () => {
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
+    
+    if (!game) return;
+    
+    try {
+      setAddingToProfile(true);
+      setAddGameMessage(null);
+      
+      await addGameToProfile(game.id, game.title, game.image);
+      
+      setIsInProfile(true);
+      setAddGameMessage({ type: 'success', text: 'Игра успешно добавлена в ваш профиль!' });
+    } catch (error) {
+      console.error('Ошибка при добавлении игры в профиль:', error);
+      setAddGameMessage({ type: 'error', text: error.message || 'Произошла ошибка при добавлении игры в профиль' });
+    } finally {
+      setAddingToProfile(false);
+      
+      // Скрыть сообщение через 3 секунды
+      setTimeout(() => {
+        setAddGameMessage(null);
+      }, 3000);
+    }
   };
 
   return (
@@ -164,6 +214,26 @@ function Game() {
                   <div className="game-image-container">
                     <img src={game.image} alt={game.title} className="game-image" />
                     <div className="game-genre">{game.genre}</div>
+                    
+                    {/* Кнопка добавления в профиль */}
+                    {isLoggedIn && (
+                      <div className="add-to-profile-container">
+                        <button 
+                          className={`add-to-profile-btn ${isInProfile ? 'in-profile' : ''}`}
+                          onClick={handleAddToProfile}
+                          disabled={addingToProfile || isInProfile}
+                        >
+                          {addingToProfile ? 'Добавление...' : isInProfile ? 'В профиле' : 'Добавить в профиль'}
+                        </button>
+                        
+                        {addGameMessage && (
+                          <div className={`add-game-message ${addGameMessage.type}`}>
+                            {addGameMessage.text}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="game-gallery">
                       <h3>Скриншоты игры</h3>
                       <div className="gallery-images">
@@ -198,7 +268,15 @@ function Game() {
                         </div>
                         <div className="spec-item">
                           <span className="spec-label">Платформа:</span>
-                          <span className="spec-value">PC, Console</span>
+                          <span className="spec-value">PC, PlayStation, Xbox</span>
+                        </div>
+                        <div className="spec-item">
+                          <span className="spec-label">Возрастной рейтинг:</span>
+                          <span className="spec-value">12+</span>
+                        </div>
+                        <div className="spec-item">
+                          <span className="spec-label">Мультиплеер:</span>
+                          <span className="spec-value">{game.id % 2 === 0 ? 'Да' : 'Нет'}</span>
                         </div>
                       </div>
                     </div>

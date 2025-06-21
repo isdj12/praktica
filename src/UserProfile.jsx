@@ -6,12 +6,18 @@ import { button } from './src.js';
 import Poisk from './component/poisk.jsx';
 import original from './assets/original.png';
 import './UserProfile.css';
+import { fetchUserGames, removeGameFromProfile, addGameToCatalog } from './api.js';
+import AddGameModal from './component/AddGameModal.jsx';
 
 function UserProfile() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("ПРОФИЛЬ");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userGames, setUserGames] = useState([]);
+  const [loadingGames, setLoadingGames] = useState(false);
+  const [isAddGameModalOpen, setIsAddGameModalOpen] = useState(false);
+  const [addingGame, setAddingGame] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -73,6 +79,25 @@ function UserProfile() {
       document.body.classList.remove('user-profile-page');
     };
   }, [navigate]);
+  
+  // Загружаем игры пользователя
+  useEffect(() => {
+    if (user && activeTab === "ПРОФИЛЬ") {
+      const loadUserGames = async () => {
+        try {
+          setLoadingGames(true);
+          const games = await fetchUserGames();
+          setUserGames(games);
+        } catch (error) {
+          console.error('Ошибка при загрузке игр пользователя:', error);
+        } finally {
+          setLoadingGames(false);
+        }
+      };
+      
+      loadUserGames();
+    }
+  }, [user, activeTab]);
 
   const handleLogout = () => {
     // Удаляем данные пользователя и токен из localStorage
@@ -86,6 +111,54 @@ function UserProfile() {
 
   const handleTabClick = (tabName) => {
     setActiveTab(tabName);
+  };
+  
+  // Функция для удаления игры из профиля
+  const handleRemoveGame = async (gameId) => {
+    try {
+      await removeGameFromProfile(gameId);
+      // Обновляем список игр
+      setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
+    } catch (error) {
+      console.error('Ошибка при удалении игры из профиля:', error);
+      alert(error.message || 'Произошла ошибка при удалении игры');
+    }
+  };
+  
+  // Открыть модальное окно добавления игры
+  const openAddGameModal = () => {
+    setIsAddGameModalOpen(true);
+  };
+  
+  // Закрыть модальное окно добавления игры
+  const closeAddGameModal = () => {
+    setIsAddGameModalOpen(false);
+  };
+  
+  // Обработчик добавления новой игры
+  const handleAddGame = async (gameData) => {
+    try {
+      setAddingGame(true);
+      
+      // Добавляем игру в каталог и автоматически в профиль пользователя
+      const newGame = await addGameToCatalog(gameData);
+      
+      // Обновляем список игр пользователя
+      const updatedGames = await fetchUserGames();
+      setUserGames(updatedGames);
+      
+      // Закрываем модальное окно
+      closeAddGameModal();
+      
+      // Показываем сообщение об успешном добавлении
+      alert('Игра успешно добавлена в каталог и ваш профиль!');
+      
+    } catch (error) {
+      console.error('Ошибка при добавлении игры:', error);
+      alert(error.message || 'Произошла ошибка при добавлении игры');
+    } finally {
+      setAddingGame(false);
+    }
   };
 
   if (loading) {
@@ -130,7 +203,7 @@ function UserProfile() {
                 <div className="ph-info">
                   <h4 className="m-t-10 m-b-5">{user.username || user.login}</h4>
                   <p className="m-b-10">{user.email ? user.email : 'Пользователь'}</p>
-                  <button className="btn sm prim m-b m-r" onClick={() => navigate('/add-game')}>Добавить игру</button>
+                  <button className="btn sm prim m-b m-r" onClick={openAddGameModal}>Добавить игру</button>
                   <button className="btn sm info m-b" onClick={handleLogout}>Выйти из аккаунта</button>
                 </div>
               </div>
@@ -149,9 +222,85 @@ function UserProfile() {
                 </button>
               </div>
             </div>
+            
+            {/* Содержимое вкладки "ПРОФИЛЬ" */}
+            {activeTab === "ПРОФИЛЬ" && (
+              <div className="profile-tab-content">
+                <div className="user-games-section">
+                  <h2>Мои игры</h2>
+                  
+                  {loadingGames ? (
+                    <div className="loading-games">Загрузка игр...</div>
+                  ) : userGames.length === 0 ? (
+                    <div className="no-games-message">
+                      <p>У вас пока нет добавленных игр в профиль.</p>
+                      <button className="btn prim" onClick={() => navigate('/')}>
+                        Перейти в каталог игр
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="user-games-grid">
+                      {userGames.map(game => (
+                        <div key={game.id} className="user-game-card">
+                          <div className="user-game-image">
+                            <img src={game.game_image} alt={game.game_name} />
+                          </div>
+                          <div className="user-game-info">
+                            <h3>{game.game_name}</h3>
+                            <p>Добавлено: {new Date(game.added_at).toLocaleDateString()}</p>
+                            <div className="user-game-actions">
+                              <button 
+                                className="btn sm info"
+                                onClick={() => navigate(`/game?id=${game.game_id}`)}
+                              >
+                                Открыть
+                              </button>
+                              <button 
+                                className="btn sm dang"
+                                onClick={() => handleRemoveGame(game.game_id)}
+                              >
+                                Удалить
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Содержимое вкладки "ДРУЗЬЯ" */}
+            {activeTab === "ДРУЗЬЯ" && (
+              <div className="profile-tab-content">
+                <p>Список друзей будет доступен в следующих обновлениях.</p>
+              </div>
+            )}
+            
+            {/* Содержимое вкладки "ФОТО" */}
+            {activeTab === "ФОТО" && (
+              <div className="profile-tab-content">
+                <p>Фотогалерея будет доступна в следующих обновлениях.</p>
+              </div>
+            )}
+            
+            {/* Содержимое вкладки "ВИДЕО" */}
+            {activeTab === "ВИДЕО" && (
+              <div className="profile-tab-content">
+                <p>Видеогалерея будет доступна в следующих обновлениях.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
+      
+      {/* Модальное окно добавления игры */}
+      <AddGameModal 
+        isOpen={isAddGameModalOpen} 
+        onClose={closeAddGameModal} 
+        onAddGame={handleAddGame} 
+      />
     </>
   );
 }
