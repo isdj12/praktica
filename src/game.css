@@ -459,6 +459,24 @@
   border: 1px solid rgba(231, 76, 60, 0.5);
 }
 
+/* Стили для кнопки закладок */
+.btn.bookmark {
+  background-color: rgba(106, 90, 205, 0.7);
+  border: 1px solid #6a5acd;
+  margin-top: 10px;
+}
+
+.btn.bookmark:hover {
+  background-color: rgba(106, 90, 205, 0.9);
+}
+
+.btn.bookmark-added {
+  background-color: rgba(106, 90, 205, 0.5);
+  border: 1px solid #6a5acd;
+  margin-top: 10px;
+  cursor: default;
+}
+
 /* Responsive styles */
 @media (max-width: 768px) {
   .game-details-container {

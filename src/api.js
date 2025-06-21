@@ -17,7 +17,16 @@ export async function fetchGames() {
       throw new Error(`Ошибка API: ${response.statusText}`);
     }
     
-    const data = await response.json();
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      console.error('Полученный текст:', text.substring(0, 200) + '...');
+      throw new Error('Сервер вернул некорректный формат данных');
+    }
+    
     console.log('Received games:', data);
     return data;
   } catch (error) {
@@ -35,7 +44,14 @@ export async function fetchGameById(gameId) {
       throw new Error(`Ошибка API: ${response.statusText}`);
     }
     
-    return await response.json();
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      console.error('Полученный текст:', text.substring(0, 200) + '...');
+      throw new Error('Сервер вернул некорректный формат данных');
+    }
   } catch (error) {
     console.error(`Ошибка при получении игры с ID ${gameId}:`, error);
     return null;
@@ -61,7 +77,14 @@ export async function fetchUserGames() {
       throw new Error(`Ошибка API: ${response.statusText}`);
     }
     
-    return await response.json();
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      console.error('Полученный текст:', text.substring(0, 200) + '...');
+      throw new Error('Сервер вернул некорректный формат данных');
+    }
   } catch (error) {
     console.error('Ошибка при получении игр пользователя:', error);
     return [];
@@ -87,11 +110,24 @@ export async function addGameToProfile(gameId, gameName, gameImage) {
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Ошибка API: ${response.statusText}`);
+      const text = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(text);
+        throw new Error(errorData.message || `Ошибка API: ${response.statusText}`);
+      } catch (e) {
+        console.error('Ошибка парсинга JSON:', e);
+        throw new Error(`Ошибка API: ${response.statusText}`);
+      }
     }
     
-    return await response.json();
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      return { success: true };
+    }
   } catch (error) {
     console.error('Ошибка при добавлении игры в профиль:', error);
     throw error;
@@ -115,11 +151,24 @@ export async function removeGameFromProfile(gameId) {
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Ошибка API: ${response.statusText}`);
+      const text = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(text);
+        throw new Error(errorData.message || `Ошибка API: ${response.statusText}`);
+      } catch (e) {
+        console.error('Ошибка парсинга JSON:', e);
+        throw new Error(`Ошибка API: ${response.statusText}`);
+      }
     }
     
-    return await response.json();
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      return { success: true };
+    }
   } catch (error) {
     console.error('Ошибка при удалении игры из профиля:', error);
     throw error;
@@ -145,8 +194,14 @@ export async function isGameInProfile(gameId) {
       return false;
     }
     
-    const data = await response.json();
-    return data.isInProfile;
+    const text = await response.text();
+    try {
+      const data = JSON.parse(text);
+      return data.isInProfile;
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      return false;
+    }
   } catch (error) {
     console.error('Ошибка при проверке наличия игры в профиле:', error);
     return false;
@@ -173,9 +228,10 @@ export async function addGameToCatalog(gameData) {
     });
     
     if (!response.ok) {
+      const text = await response.text();
       let errorMessage = `Ошибка API: ${response.statusText}`;
       try {
-        const errorData = await response.json();
+        const errorData = JSON.parse(text);
         errorMessage = errorData.message || errorMessage;
       } catch (e) {
         console.error('Не удалось прочитать ответ с ошибкой:', e);
@@ -183,12 +239,171 @@ export async function addGameToCatalog(gameData) {
       throw new Error(errorMessage);
     }
     
-    const newGame = await response.json();
+    const text = await response.text();
+    let newGame;
+    try {
+      newGame = JSON.parse(text);
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      console.error('Полученный текст:', text.substring(0, 200) + '...');
+      throw new Error('Сервер вернул некорректный формат данных');
+    }
+    
     console.log('Успешно добавлена игра:', newGame);
     
     return newGame;
   } catch (error) {
     console.error('Ошибка при добавлении игры в каталог:', error);
     throw error;
+  }
+}
+
+// Получить список закладок пользователя
+export async function fetchUserBookmarks() {
+  try {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
+    }
+    
+    const response = await fetch(`${NODE_API_URL}/profile/bookmarks`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Ошибка API: ${response.statusText}`);
+    }
+    
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      console.error('Полученный текст:', text.substring(0, 200) + '...');
+      throw new Error('Сервер вернул некорректный формат данных');
+    }
+  } catch (error) {
+    console.error('Ошибка при получении закладок пользователя:', error);
+    return [];
+  }
+}
+
+// Добавить игру в закладки пользователя
+export async function addGameToBookmarks(gameId) {
+  try {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
+    }
+    
+    const response = await fetch(`${NODE_API_URL}/profile/bookmarks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ gameId })
+    });
+    
+    if (!response.ok) {
+      const text = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(text);
+        throw new Error(errorData.message || `Ошибка API: ${response.statusText}`);
+      } catch (e) {
+        console.error('Ошибка парсинга JSON:', e);
+        throw new Error(`Ошибка API: ${response.statusText}`);
+      }
+    }
+    
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      return { success: true };
+    }
+  } catch (error) {
+    console.error('Ошибка при добавлении игры в закладки:', error);
+    throw error;
+  }
+}
+
+// Удалить игру из закладок пользователя
+export async function removeGameFromBookmarks(gameId) {
+  try {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
+    }
+    
+    const response = await fetch(`${NODE_API_URL}/profile/bookmarks/${gameId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      const text = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(text);
+        throw new Error(errorData.message || `Ошибка API: ${response.statusText}`);
+      } catch (e) {
+        console.error('Ошибка парсинга JSON:', e);
+        throw new Error(`Ошибка API: ${response.statusText}`);
+      }
+    }
+    
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      return { success: true };
+    }
+  } catch (error) {
+    console.error('Ошибка при удалении игры из закладок:', error);
+    throw error;
+  }
+}
+
+// Проверить, добавлена ли игра в закладки пользователя
+export async function isGameInBookmarks(gameId) {
+  try {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      return false;
+    }
+    
+    const response = await fetch(`${NODE_API_URL}/profile/bookmarks/${gameId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      return false;
+    }
+    
+    const text = await response.text();
+    try {
+      const data = JSON.parse(text);
+      return data.isInBookmarks;
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      return false;
+    }
+  } catch (error) {
+    console.error('Ошибка при проверке наличия игры в закладках:', error);
+    return false;
   }
 } 

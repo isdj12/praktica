@@ -6,7 +6,13 @@ import { button } from './src.js';
 import Poisk from './component/poisk.jsx';
 import original from './assets/original.png';
 import './UserProfile.css';
-import { fetchUserGames, removeGameFromProfile, addGameToCatalog } from './api.js';
+import { 
+  fetchUserGames, 
+  removeGameFromProfile, 
+  addGameToCatalog, 
+  fetchUserBookmarks,
+  removeGameFromBookmarks
+} from './api.js';
 import AddGameModal from './component/AddGameModal.jsx';
 
 function UserProfile() {
@@ -15,7 +21,9 @@ function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userGames, setUserGames] = useState([]);
+  const [userBookmarks, setUserBookmarks] = useState([]);
   const [loadingGames, setLoadingGames] = useState(false);
+  const [loadingBookmarks, setLoadingBookmarks] = useState(false);
   const [isAddGameModalOpen, setIsAddGameModalOpen] = useState(false);
   const [addingGame, setAddingGame] = useState(false);
   const navigate = useNavigate();
@@ -52,7 +60,16 @@ function UserProfile() {
           throw new Error('Не удалось загрузить профиль');
         }
         
-        const data = await response.json();
+        const text = await response.text();
+        let data;
+        
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          console.error('Ошибка парсинга JSON:', e);
+          console.error('Полученный текст:', text.substring(0, 200) + '...');
+          throw new Error('Сервер вернул некорректный формат данных');
+        }
         
         // Если в localStorage есть данные пользователя, используем их, иначе используем данные из API
         if (savedUser) {
@@ -99,6 +116,25 @@ function UserProfile() {
     }
   }, [user, activeTab]);
 
+  // Загружаем закладки пользователя
+  useEffect(() => {
+    if (user && activeTab === "ЗАКЛАДКИ") {
+      const loadUserBookmarks = async () => {
+        try {
+          setLoadingBookmarks(true);
+          const bookmarks = await fetchUserBookmarks();
+          setUserBookmarks(bookmarks);
+        } catch (error) {
+          console.error('Ошибка при загрузке закладок пользователя:', error);
+        } finally {
+          setLoadingBookmarks(false);
+        }
+      };
+      
+      loadUserBookmarks();
+    }
+  }, [user, activeTab]);
+
   const handleLogout = () => {
     // Удаляем данные пользователя и токен из localStorage
     localStorage.removeItem('user');
@@ -122,6 +158,18 @@ function UserProfile() {
     } catch (error) {
       console.error('Ошибка при удалении игры из профиля:', error);
       alert(error.message || 'Произошла ошибка при удалении игры');
+    }
+  };
+
+  // Функция для удаления игры из закладок
+  const handleRemoveBookmark = async (gameId) => {
+    try {
+      await removeGameFromBookmarks(gameId);
+      // Обновляем список закладок
+      setUserBookmarks(prevBookmarks => prevBookmarks.filter(bookmark => bookmark.game_id !== parseInt(gameId)));
+    } catch (error) {
+      console.error('Ошибка при удалении игры из закладок:', error);
+      alert(error.message || 'Произошла ошибка при удалении закладки');
     }
   };
   
@@ -214,8 +262,8 @@ function UserProfile() {
                 <button className={`nav-link_ ${activeTab === "ДРУЗЬЯ" ? "active show" : ""}`} onClick={() => handleTabClick("ДРУЗЬЯ")}>
                   ДРУЗЬЯ
                 </button>
-                <button className={`nav-link_ ${activeTab === "ФОТО" ? "active show" : ""}`} onClick={() => handleTabClick("ФОТО")}>
-                  ФОТО
+                <button className={`nav-link_ ${activeTab === "ЗАКЛАДКИ" ? "active show" : ""}`} onClick={() => handleTabClick("ЗАКЛАДКИ")}>
+                  ЗАКЛАДКИ
                 </button>
                 <button className={`nav-link_ ${activeTab === "ВИДЕО" ? "active show" : ""}`} onClick={() => handleTabClick("ВИДЕО")}>
                   ВИДЕО
@@ -278,10 +326,55 @@ function UserProfile() {
               </div>
             )}
             
-            {/* Содержимое вкладки "ФОТО" */}
-            {activeTab === "ФОТО" && (
+            {/* Содержимое вкладки "ЗАКЛАДКИ" */}
+            {activeTab === "ЗАКЛАДКИ" && (
               <div className="profile-tab-content">
-                <p>Фотогалерея будет доступна в следующих обновлениях.</p>
+                <div className="user-bookmarks-section">
+                  <h2>Мои закладки</h2>
+                  
+                  {loadingBookmarks ? (
+                    <div className="loading-games">Загрузка закладок...</div>
+                  ) : userBookmarks.length === 0 ? (
+                    <div className="no-games-message">
+                      <p>У вас пока нет добавленных игр в закладки.</p>
+                      <p>Добавляйте игры других пользователей в закладки, чтобы быстро находить их позже.</p>
+                      <button className="btn prim" onClick={() => navigate('/katalog')}>
+                        Перейти в каталог игр
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="user-games-grid">
+                      {userBookmarks.map(bookmark => (
+                        <div key={bookmark.id} className="user-game-card bookmark-card">
+                          <div className="user-game-image">
+                            <img src={bookmark.game_image} alt={bookmark.game_name} />
+                            <div className="game-author">
+                              Автор: {bookmark.author_name || "Неизвестно"}
+                            </div>
+                          </div>
+                          <div className="user-game-info">
+                            <h3>{bookmark.game_name}</h3>
+                            <p>Добавлено: {new Date(bookmark.added_at).toLocaleDateString()}</p>
+                            <div className="user-game-actions">
+                              <button 
+                                className="btn sm info"
+                                onClick={() => navigate(`/game?id=${bookmark.game_id}`)}
+                              >
+                                Открыть
+                              </button>
+                              <button 
+                                className="btn sm dang"
+                                onClick={() => handleRemoveBookmark(bookmark.game_id)}
+                              >
+                                Удалить
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             

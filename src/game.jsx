@@ -7,7 +7,13 @@ import Profile from './component/profile.jsx'
 import original from './assets/original.png'
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { addGameToProfile, isGameInProfile, fetchGameById } from './api.js'
+import { 
+  addGameToProfile, 
+  isGameInProfile, 
+  fetchGameById, 
+  addGameToBookmarks, 
+  isGameInBookmarks 
+} from './api.js'
 
 function Game() {
   const [searchParams] = useSearchParams();
@@ -18,8 +24,11 @@ function Game() {
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isInProfile, setIsInProfile] = useState(false);
+  const [isInBookmarks, setIsInBookmarks] = useState(false);
   const [addingToProfile, setAddingToProfile] = useState(false);
+  const [addingToBookmarks, setAddingToBookmarks] = useState(false);
   const [addGameMessage, setAddGameMessage] = useState(null);
+  const [bookmarkMessage, setBookmarkMessage] = useState(null);
   const [selectedScreenshot, setSelectedScreenshot] = useState(null);
   
   // Функция для выхода из аккаунта
@@ -87,6 +96,22 @@ function Game() {
     }
   }, [isLoggedIn, game]);
 
+  // Проверяем, добавлена ли игра в закладки пользователя
+  useEffect(() => {
+    if (isLoggedIn && game && game.id) {
+      const checkGameInBookmarks = async () => {
+        try {
+          const result = await isGameInBookmarks(game.id);
+          setIsInBookmarks(result);
+        } catch (error) {
+          console.error('Ошибка при проверке наличия игры в закладках:', error);
+        }
+      };
+      
+      checkGameInBookmarks();
+    }
+  }, [isLoggedIn, game]);
+
   // Функция для отображения звездного рейтинга
   const renderStars = (rating) => {
     const stars = [];
@@ -132,6 +157,36 @@ function Game() {
       // Скрыть сообщение через 3 секунды
       setTimeout(() => {
         setAddGameMessage(null);
+      }, 3000);
+    }
+  };
+
+  // Функция для добавления игры в закладки
+  const handleAddToBookmarks = async () => {
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
+    
+    if (!game) return;
+    
+    try {
+      setAddingToBookmarks(true);
+      setBookmarkMessage(null);
+      
+      await addGameToBookmarks(game.id);
+      
+      setIsInBookmarks(true);
+      setBookmarkMessage({ type: 'success', text: 'Игра успешно добавлена в ваши закладки!' });
+    } catch (error) {
+      console.error('Ошибка при добавлении игры в закладки:', error);
+      setBookmarkMessage({ type: 'error', text: error.message || 'Произошла ошибка при добавлении игры в закладки' });
+    } finally {
+      setAddingToBookmarks(false);
+      
+      // Скрыть сообщение через 3 секунды
+      setTimeout(() => {
+        setBookmarkMessage(null);
       }, 3000);
     }
   };
@@ -225,6 +280,7 @@ function Game() {
                       className="btn prim" 
                       onClick={handleAddToProfile}
                       disabled={addingToProfile}
+                      style={{ display: 'none' }}
                     >
                       {addingToProfile ? 'Добавление...' : 'Добавить в профиль'}
                     </button>
@@ -233,6 +289,26 @@ function Game() {
                   {addGameMessage && (
                     <div className={`message ${addGameMessage.type}`}>
                       {addGameMessage.text}
+                    </div>
+                  )}
+                  
+                  {isInBookmarks ? (
+                    <button className="btn bookmark-added" disabled>
+                      В закладках
+                    </button>
+                  ) : (
+                    <button 
+                      className="btn bookmark" 
+                      onClick={handleAddToBookmarks}
+                      disabled={addingToBookmarks}
+                    >
+                      {addingToBookmarks ? 'Добавление...' : 'Добавить в закладки'}
+                    </button>
+                  )}
+                  
+                  {bookmarkMessage && (
+                    <div className={`message ${bookmarkMessage.type}`}>
+                      {bookmarkMessage.text}
                     </div>
                   )}
                 </div>
@@ -268,6 +344,12 @@ function Game() {
                       <div className="game-detail-item">
                         <span className="game-detail-label">Дата выпуска:</span>
                         <span className="game-detail-value">{new Date(game.releaseDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    {game.author && (
+                      <div className="game-detail-item">
+                        <span className="game-detail-label">Автор:</span>
+                        <span className="game-detail-value">{game.author}</span>
                       </div>
                     )}
                   </div>

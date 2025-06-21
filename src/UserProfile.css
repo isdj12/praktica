@@ -852,3 +852,54 @@ body.user-profile-page {
   }
 }
 
+/* Стили для закладок */
+.user-bookmarks-section {
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.user-bookmarks-section h2 {
+  color: #3a9ad9;
+  font-size: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(58, 154, 217, 0.3);
+}
+
+.bookmark-card {
+  position: relative;
+  border: 2px solid #3a9ad9;
+  transition: all 0.3s ease;
+}
+
+.bookmark-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(58, 154, 217, 0.9);
+}
+
+.game-author {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #3a9ad9;
+  padding: 5px;
+  font-size: 11px;
+  text-align: center;
+  border-top: 1px solid rgba(58, 154, 217, 0.5);
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 768px) {
+  .user-bookmarks-section {
+    padding: 10px;
+  }
+  
+  .game-author {
+    font-size: 10px;
+  }
+}
+
