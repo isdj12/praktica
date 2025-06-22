@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { register, login, verifyToken } from './database/auth.js';
 import { addGameToUserProfile, getUserGames, removeGameFromUserProfile, isGameInUserProfile } from './database/userGames.js';
-import { addGame, getAllGames, getGameById } from './database/games.js';
+import { addGame, getAllGames, getGameById, getPopularGames, incrementGameClicks, deleteGame } from './database/games.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -296,6 +296,29 @@ app.get('/api/games', async (req, res) => {
   }
 });
 
+// Получение списка популярных игр
+app.get('/api/games/popular', async (req, res) => {
+  try {
+    const popularGames = await getPopularGames();
+    res.json(popularGames);
+  } catch (error) {
+    console.error('Ошибка при получении списка популярных игр:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Обновление счетчика кликов для игры
+app.post('/api/games/:id/click', async (req, res) => {
+  try {
+    const gameId = parseInt(req.params.id);
+    const clickCount = await incrementGameClicks(gameId);
+    res.json({ gameId, clicks: clickCount });
+  } catch (error) {
+    console.error('Ошибка при обновлении счетчика кликов:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Получение информации об одной игре по ID
 app.get('/api/games/:id', async (req, res) => {
   try {
@@ -309,6 +332,38 @@ app.get('/api/games/:id', async (req, res) => {
     res.json(game);
   } catch (error) {
     console.error(`Ошибка при получении игры с ID ${req.params.id}:`, error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Удаление игры из каталога (только для автора игры или администратора)
+app.delete('/api/games/:id', authMiddleware, async (req, res) => {
+  try {
+    const gameId = parseInt(req.params.id);
+    const userId = req.user.id;
+    
+    // Получаем информацию об игре
+    const game = await getGameById(gameId);
+    
+    if (!game) {
+      return res.status(404).json({ message: 'Игра не найдена' });
+    }
+    
+    // Проверяем, является ли пользователь автором игры или администратором
+    if (game.userId !== userId && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'У вас нет прав для удаления этой игры' });
+    }
+    
+    // Удаляем игру из базы данных
+    const success = await deleteGame(gameId);
+    
+    if (success) {
+      res.status(200).json({ message: 'Игра успешно удалена' });
+    } else {
+      res.status(404).json({ message: 'Игра не найдена или не может быть удалена' });
+    }
+  } catch (error) {
+    console.error('Ошибка при удалении игры:', error);
     res.status(500).json({ message: error.message });
   }
 });

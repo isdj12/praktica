@@ -11,7 +11,8 @@ import {
   removeGameFromProfile, 
   addGameToCatalog, 
   fetchUserBookmarks,
-  removeGameFromBookmarks
+  removeGameFromBookmarks,
+  deleteGameFromCatalog
 } from './api.js';
 import AddGameModal from './component/AddGameModal.jsx';
 
@@ -152,11 +153,34 @@ function UserProfile() {
   // Функция для удаления игры из профиля
   const handleRemoveGame = async (gameId) => {
     try {
-      await removeGameFromProfile(gameId);
-      // Обновляем список игр
-      setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
+      // Сначала проверяем, является ли пользователь автором игры
+      const game = userGames.find(game => game.game_id === parseInt(gameId));
+      
+      if (!game) {
+        throw new Error('Игра не найдена');
+      }
+      
+      // Получаем данные о текущем пользователе
+      const userData = JSON.parse(localStorage.getItem('user'));
+      
+      // Проверяем, является ли пользователь автором игры
+      const isAuthor = game.user_id === userData.id;
+      
+      // Спрашиваем пользователя, хочет ли он удалить игру полностью из базы данных
+      if (isAuthor && window.confirm('Вы являетесь автором этой игры. Хотите полностью удалить её из каталога?')) {
+        // Удаляем игру из каталога (и автоматически из профиля)
+        await deleteGameFromCatalog(gameId);
+        // Обновляем список игр
+        setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
+        alert('Игра успешно удалена из каталога');
+      } else {
+        // Просто удаляем игру из профиля пользователя
+        await removeGameFromProfile(gameId);
+        // Обновляем список игр
+        setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
+      }
     } catch (error) {
-      console.error('Ошибка при удалении игры из профиля:', error);
+      console.error('Ошибка при удалении игры:', error);
       alert(error.message || 'Произошла ошибка при удалении игры');
     }
   };
@@ -209,6 +233,19 @@ function UserProfile() {
     }
   };
 
+  // Функция для форматирования даты
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
+    } catch (error) {
+      return 'Дата неизвестна';
+    }
+  };
+
   if (loading) {
     return <div className="loading">Загрузка...</div>;
   }
@@ -225,16 +262,15 @@ function UserProfile() {
     <>
       <div className="user-profile">
         <div className="header-container">
-          <img src={original} alt="logo" className='logo' />
+          <img src={original} alt="logo" className='logo' onClick={() => navigate('/')} style={{cursor: 'pointer'}} />
           <div className="button-container">
             <Button text={button[0].text} href={button[0].href} />
             <Button text={button[1].text} href={button[1].href} className="right-button" />
-            <Button text={button[2].text} href={button[2].href} className="right-button" />
+            <Button text={button[2].text} href={button[2].href} className="right-button" isRandomGame={button[2].isRandomGame} />
           </div>
           <div className="search-wrapper">
             <Poisk />
             <div className="home-link">
-              <Link to="/">На главную</Link>
             </div>
           </div>
         </div>
@@ -259,14 +295,8 @@ function UserProfile() {
                 <button className={`nav-link_ ${activeTab === "ПРОФИЛЬ" ? "active show" : ""}`} onClick={() => handleTabClick("ПРОФИЛЬ")}>
                   ПРОФИЛЬ
                 </button>
-                <button className={`nav-link_ ${activeTab === "ДРУЗЬЯ" ? "active show" : ""}`} onClick={() => handleTabClick("ДРУЗЬЯ")}>
-                  ДРУЗЬЯ
-                </button>
                 <button className={`nav-link_ ${activeTab === "ЗАКЛАДКИ" ? "active show" : ""}`} onClick={() => handleTabClick("ЗАКЛАДКИ")}>
                   ЗАКЛАДКИ
-                </button>
-                <button className={`nav-link_ ${activeTab === "ВИДЕО" ? "active show" : ""}`} onClick={() => handleTabClick("ВИДЕО")}>
-                  ВИДЕО
                 </button>
               </div>
             </div>
@@ -319,13 +349,6 @@ function UserProfile() {
               </div>
             )}
             
-            {/* Содержимое вкладки "ДРУЗЬЯ" */}
-            {activeTab === "ДРУЗЬЯ" && (
-              <div className="profile-tab-content">
-                <p>Список друзей будет доступен в следующих обновлениях.</p>
-              </div>
-            )}
-            
             {/* Содержимое вкладки "ЗАКЛАДКИ" */}
             {activeTab === "ЗАКЛАДКИ" && (
               <div className="profile-tab-content">
@@ -343,30 +366,44 @@ function UserProfile() {
                       </button>
                     </div>
                   ) : (
-                    <div className="user-games-grid">
+                    <div className="bookmarks-grid">
                       {userBookmarks.map(bookmark => (
-                        <div key={bookmark.id} className="user-game-card bookmark-card">
-                          <div className="user-game-image">
-                            <img src={bookmark.game_image} alt={bookmark.game_name} />
-                            <div className="game-author">
-                              Автор: {bookmark.author_name || "Неизвестно"}
+                        <div key={bookmark.id} className="bookmark-card">
+                          <div className="bookmark-image-container">
+                            <img 
+                              src={bookmark.game_image} 
+                              alt={bookmark.game_name}
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "https://via.placeholder.com/300x150?text=Нет+фото";
+                              }}
+                            />
+                            <div className="bookmark-genre">
+                              {bookmark.game_genre || 'Не указан'}
+                            </div>
+                            <div className="bookmark-overlay">
+                              <div className="bookmark-date">
+                                {formatDate(bookmark.added_at)}
+                              </div>
+                              <div className="bookmark-author">
+                                Автор: {bookmark.author_name || "Неизвестно"}
+                              </div>
                             </div>
                           </div>
-                          <div className="user-game-info">
-                            <h3>{bookmark.game_name}</h3>
-                            <p>Добавлено: {new Date(bookmark.added_at).toLocaleDateString()}</p>
-                            <div className="user-game-actions">
+                          <div className="bookmark-content">
+                            <h3 className="bookmark-title">{bookmark.game_name}</h3>
+                            <div className="bookmark-actions">
                               <button 
-                                className="btn sm info"
+                                className="bookmark-btn open"
                                 onClick={() => navigate(`/game?id=${bookmark.game_id}`)}
                               >
-                                Открыть
+                                ОТКРЫТЬ
                               </button>
                               <button 
-                                className="btn sm dang"
+                                className="bookmark-btn remove"
                                 onClick={() => handleRemoveBookmark(bookmark.game_id)}
                               >
-                                Удалить
+                                УДАЛИТЬ
                               </button>
                             </div>
                           </div>
@@ -375,13 +412,6 @@ function UserProfile() {
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-            
-            {/* Содержимое вкладки "ВИДЕО" */}
-            {activeTab === "ВИДЕО" && (
-              <div className="profile-tab-content">
-                <p>Видеогалерея будет доступна в следующих обновлениях.</p>
               </div>
             )}
           </div>

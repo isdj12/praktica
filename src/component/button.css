@@ -23,6 +23,8 @@ a {
   overflow: hidden;
   padding: 15px 30px;
   color: white;
+  background-color: #171718;
+  border: none;
   cursor: pointer;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 21px;
@@ -71,4 +73,13 @@ a {
   display: flex;
   align-items: center;
   margin-left: 30px;
+}
+
+/* Стили для всех типов кнопок (a, button) внутри button-container */
+.button-container .button,
+.button-container a.button,
+.button-container button.button {
+  background-color: #171718;
+  color: white;
+  border: none;
 }

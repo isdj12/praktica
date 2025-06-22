@@ -21,6 +21,7 @@ export async function addGame(gameData) {
         console.log("Таблица games существует, но не имеет нужной структуры. Пересоздаем таблицу...");
         await dbAsync.run("DROP TABLE IF EXISTS game_tags");
         await dbAsync.run("DROP TABLE IF EXISTS game_screenshots");
+        await dbAsync.run("DROP TABLE IF EXISTS game_clicks");
         await dbAsync.run("DROP TABLE IF EXISTS games");
       }
     } catch (error) {
@@ -28,6 +29,7 @@ export async function addGame(gameData) {
       // В случае ошибки, пробуем пересоздать таблицу
       await dbAsync.run("DROP TABLE IF EXISTS game_tags");
       await dbAsync.run("DROP TABLE IF EXISTS game_screenshots");
+      await dbAsync.run("DROP TABLE IF EXISTS game_clicks");
       await dbAsync.run("DROP TABLE IF EXISTS games");
     }
     
@@ -69,6 +71,17 @@ export async function addGame(gameData) {
       )
     `);
     
+    // Создаем таблицу game_clicks для отслеживания кликов, если она не существует
+    await dbAsync.run(`
+      CREATE TABLE IF NOT EXISTS game_clicks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id INTEGER NOT NULL,
+        click_count INTEGER DEFAULT 0,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
+      )
+    `);
+    
     // Вставляем данные игры в таблицу games
     const result = await dbAsync.run(
       `INSERT INTO games (name, description, platform, multiplayer, genre, ageRating, releaseDate, image, userId, createdAt)
@@ -88,6 +101,12 @@ export async function addGame(gameData) {
     );
     
     const gameId = result.lastID;
+    
+    // Инициализируем счетчик кликов для новой игры
+    await dbAsync.run(
+      'INSERT INTO game_clicks (game_id, click_count) VALUES (?, ?)',
+      [gameId, 0]
+    );
     
     // Добавляем теги
     if (gameData.tags && gameData.tags.length > 0) {
@@ -147,10 +166,17 @@ export async function getGameById(id) {
       [id]
     );
     
+    // Получаем количество кликов
+    const clickData = await dbAsync.get(
+      'SELECT click_count FROM game_clicks WHERE game_id = ?',
+      [id]
+    );
+    
     return {
       ...game,
       tags: tags.map(t => t.tag),
-      screenshots: screenshots.map(s => s.screenshot_url)
+      screenshots: screenshots.map(s => s.screenshot_url),
+      clicks: clickData ? clickData.click_count : 0
     };
   } catch (error) {
     console.error(`Ошибка при получении игры с ID ${id}:`, error);
@@ -167,7 +193,7 @@ export async function getAllGames() {
     // Получаем список всех игр
     const games = await dbAsync.all('SELECT * FROM games ORDER BY createdAt DESC');
     
-    // Для каждой игры получаем теги и скриншоты
+    // Для каждой игры получаем теги, скриншоты и клики
     const gamesWithDetails = await Promise.all(games.map(async (game) => {
       const tags = await dbAsync.all(
         'SELECT tag FROM game_tags WHERE game_id = ?',
@@ -179,16 +205,120 @@ export async function getAllGames() {
         [game.id]
       );
       
+      const clickData = await dbAsync.get(
+        'SELECT click_count FROM game_clicks WHERE game_id = ?',
+        [game.id]
+      );
+      
       return {
         ...game,
         tags: tags.map(t => t.tag),
-        screenshots: screenshots.map(s => s.screenshot_url)
+        screenshots: screenshots.map(s => s.screenshot_url),
+        clicks: clickData ? clickData.click_count : 0
       };
     }));
     
     return gamesWithDetails;
   } catch (error) {
     console.error('Ошибка при получении списка игр:', error);
+    throw error;
+  }
+}
+
+/**
+ * Получение списка популярных игр по количеству кликов
+ * @returns {Promise<array>} - Массив игр, отсортированный по кликам
+ */
+export async function getPopularGames() {
+  try {
+    // Получаем все игры с их кликами
+    const games = await getAllGames();
+    
+    // Сортируем по количеству кликов (от большего к меньшему)
+    return games.sort((a, b) => b.clicks - a.clicks);
+  } catch (error) {
+    console.error('Ошибка при получении популярных игр:', error);
+    throw error;
+  }
+}
+
+/**
+ * Увеличение счетчика кликов для игры
+ * @param {number} gameId - ID игры
+ * @returns {Promise<number>} - Новое количество кликов
+ */
+export async function incrementGameClicks(gameId) {
+  try {
+    // Проверяем, существует ли запись для этой игры
+    const clickData = await dbAsync.get(
+      'SELECT * FROM game_clicks WHERE game_id = ?',
+      [gameId]
+    );
+    
+    if (clickData) {
+      // Если запись существует, увеличиваем счетчик
+      await dbAsync.run(
+        'UPDATE game_clicks SET click_count = click_count + 1, last_updated = CURRENT_TIMESTAMP WHERE game_id = ?',
+        [gameId]
+      );
+    } else {
+      // Если записи нет, создаем новую
+      await dbAsync.run(
+        'INSERT INTO game_clicks (game_id, click_count) VALUES (?, ?)',
+        [gameId, 1]
+      );
+    }
+    
+    // Получаем обновленное значение счетчика
+    const updatedClickData = await dbAsync.get(
+      'SELECT click_count FROM game_clicks WHERE game_id = ?',
+      [gameId]
+    );
+    
+    return updatedClickData ? updatedClickData.click_count : 1;
+  } catch (error) {
+    console.error(`Ошибка при увеличении счетчика кликов для игры с ID ${gameId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Удаление игры из каталога и всех связанных записей
+ * @param {number} gameId - ID игры для удаления
+ * @returns {Promise<boolean>} - Успешность операции
+ */
+export async function deleteGame(gameId) {
+  try {
+    // Начинаем транзакцию для обеспечения целостности данных
+    await dbAsync.run('BEGIN TRANSACTION');
+    
+    try {
+      // Удаляем связанные записи из таблицы game_tags
+      await dbAsync.run('DELETE FROM game_tags WHERE game_id = ?', [gameId]);
+      
+      // Удаляем связанные записи из таблицы game_screenshots
+      await dbAsync.run('DELETE FROM game_screenshots WHERE game_id = ?', [gameId]);
+      
+      // Удаляем связанные записи из таблицы game_clicks
+      await dbAsync.run('DELETE FROM game_clicks WHERE game_id = ?', [gameId]);
+      
+      // Удаляем связанные записи из таблицы user_games
+      await dbAsync.run('DELETE FROM user_games WHERE game_id = ?', [gameId]);
+      
+      // Удаляем саму игру из таблицы games
+      const result = await dbAsync.run('DELETE FROM games WHERE id = ?', [gameId]);
+      
+      // Завершаем транзакцию
+      await dbAsync.run('COMMIT');
+      
+      return result.changes > 0;
+    } catch (error) {
+      // В случае ошибки отменяем транзакцию
+      await dbAsync.run('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    console.error(`Ошибка при удалении игры с ID ${gameId}:`, error);
     throw error;
   }
 } 

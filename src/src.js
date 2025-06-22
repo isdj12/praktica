@@ -9,6 +9,7 @@ export const button = [
     },
     { 
         text: "случайная игра",
-        href: "/katalog"
+        href: "#random-game",
+        isRandomGame: true
     },
 ]

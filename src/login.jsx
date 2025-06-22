@@ -76,11 +76,11 @@ function Login() {
   return (
     <>
       <div className="header-container">
-        <img src={original} alt="logo" className='logo' />
+        <img src={original} alt="logo" className='logo' onClick={() => navigate('/')} style={{cursor: 'pointer'}} />
         <div className="button-container">
           <Button text={button[0].text} href={button[0].href} />
           <Button text={button[1].text} href={button[1].href} className="right-button" />
-          <Button text={button[2].text} href={button[2].href} className="right-button" />
+          <Button text={button[2].text} href={button[2].href} className="right-button" isRandomGame={button[2].isRandomGame} />
         </div>
         <div className="search-wrapper">
           <Poisk />

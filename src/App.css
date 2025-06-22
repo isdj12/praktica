@@ -183,6 +183,7 @@ body{
   height: 100%;
   object-fit: cover;
   object-position: center;
+  cursor: pointer;
 }
 
 .game-indicator-foto .single-foto {
@@ -398,4 +399,67 @@ body{
 
 .logo-button:hover {
   transform: scale(1.1);
+}
+
+/* Стили для заголовка популярных игр */
+.popular-games-title {
+  text-align: center;
+  margin-top: 1px;
+  margin-bottom: 1px;
+  color: #333;
+  font-size: 24px;
+  font-weight: bold;
+  text-transform: uppercase;
+  position: relative;
+}
+
+.popular-games-title:after {
+  content: '';
+  display: block;
+  width: 100px;
+  height: 3px;
+  background-color: #3a9ad9;
+  margin: 10px auto;
+}
+
+/* Стили для счетчика просмотров */
+.game-clicks {
+  margin-left: 10px;
+  font-size: 14px;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 2px 6px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Стили для состояния загрузки и ошибок */
+.loading-games {
+  text-align: center;
+  padding: 30px;
+  font-size: 18px;
+  color: #666;
+}
+
+.error-message {
+  text-align: center;
+  padding: 20px;
+  color: #e74c3c;
+  background-color: rgba(231, 76, 60, 0.1);
+  border: 1px solid #e74c3c;
+  border-radius: 5px;
+  margin: 20px;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .popular-games-title {
+    font-size: 20px;
+  }
+  
+  .game-clicks {
+    font-size: 12px;
+    padding: 1px 4px;
+  }
 }
