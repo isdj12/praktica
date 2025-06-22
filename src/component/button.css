@@ -22,7 +22,7 @@ a {
   position: relative;
   overflow: hidden;
   padding: 15px 30px;
-  color: white;
+  color: white !important;
   background-color: #171718;
   border: none;
   cursor: pointer;
@@ -80,6 +80,6 @@ a {
 .button-container a.button,
 .button-container button.button {
   background-color: #171718;
-  color: white;
+  color: white !important;
   border: none;
 }

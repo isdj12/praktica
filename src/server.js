@@ -83,12 +83,12 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
-// Обслуживание статических файлов
-app.use(express.static(path.join(__dirname, '..')));
+// Обслуживание статических файлов из папки dist (собранное приложение)
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // В продакшене добавляем обслуживание статических файлов из билда React
 if (process.env.NODE_ENV === 'production') {
-  const buildPath = path.join(__dirname, '../build');
+  const buildPath = path.join(__dirname, '../dist');
   app.use(express.static(buildPath));
 }
 
@@ -403,19 +403,14 @@ app.delete('/api/games/:id', authMiddleware, isAdmin, asyncHandler(async (req, r
   }
 }));
 
-// Обработчик для корневого URL
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../index.html'));
-});
-
-// Маршрут для всех остальных запросов, чтобы React Router работал корректно
-app.get('*', (req, res) => {
+// Обработчик для корневого URL и всех остальных URL (кроме API)
+app.get(['/', '/*'], (req, res, next) => {
   // Если запрос начинается с /api, то это API запрос
   if (req.path.startsWith('/api')) {
-    return res.status(404).json({ message: 'API endpoint not found' });
+    return next();
   }
   // Иначе отдаем index.html для клиентской маршрутизации
-  res.sendFile(path.join(__dirname, '../index.html'));
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Запуск сервера

@@ -85,7 +85,6 @@ function Register() {
         <div className="search-wrapper">
           <Poisk />
           <div className="home-link">
-            <Link to="/">На главную</Link>
           </div>
         </div>
       </div>
