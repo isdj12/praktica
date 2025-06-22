@@ -1,12 +1,98 @@
-# React + Vite
+# Каталог игр
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Веб-приложение для создания и управления каталогом игр с возможностью добавления, удаления и просмотра игр.
 
-Currently, two official plugins are available:
+## Функциональность
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Регистрация и авторизация пользователей
+- Добавление игр в каталог с загрузкой изображений
+- Просмотр игр в каталоге с фильтрацией
+- Добавление игр в профиль пользователя
+- Добавление игр в закладки
+- Удаление игр из каталога (для автора игры)
 
-## Expanding the ESLint configuration
+## Технологии
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Frontend: React, CSS
+- Backend: Node.js, Express
+- База данных: SQLite
+- Аутентификация: JWT
+
+## Установка и запуск
+
+### Требования
+
+- Node.js >= 16.0.0
+- npm или yarn
+
+### Локальная разработка
+
+1. Клонировать репозиторий:
+   ```bash
+   git clone https://github.com/username/game-catalog.git
+   cd game-catalog
+   ```
+
+2. Установить зависимости:
+   ```bash
+   npm install
+   ```
+
+3. Создать файл `.env` на основе `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Запустить сервер в режиме разработки:
+   ```bash
+   npm run dev
+   ```
+
+5. Запустить клиент в режиме разработки (в отдельном терминале):
+   ```bash
+   cd frontend
+   npm install
+   npm start
+   ```
+
+6. Или запустить оба сервера одновременно:
+   ```bash
+   npm run dev:full
+   ```
+
+### Деплой на хостинг
+
+1. Настроить переменные окружения на хостинге согласно `.env.example`
+
+2. Для Heroku:
+   ```bash
+   heroku create
+   git push heroku main
+   ```
+
+3. Для других хостингов:
+   - Собрать проект: `npm run build`
+   - Запустить сервер: `npm start`
+
+## Структура проекта
+
+```
+/
+├── frontend/            # React-приложение
+├── public/              # Статические файлы
+│   └── uploads/         # Загруженные изображения
+├── src/                 # Исходный код сервера
+│   ├── component/       # React-компоненты
+│   ├── database/        # Модули для работы с базой данных
+│   ├── api.js           # API-клиент
+│   └── server.js        # Express-сервер
+├── .env                 # Переменные окружения
+├── .env.example         # Пример переменных окружения
+├── .gitignore           # Исключения Git
+├── package.json         # Зависимости и скрипты
+└── README.md            # Документация
+```
+
+## Лицензия
+
+MIT

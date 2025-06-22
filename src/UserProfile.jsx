@@ -16,6 +16,14 @@ import {
 } from './api.js';
 import AddGameModal from './component/AddGameModal.jsx';
 
+// Определяем базовый URL API в зависимости от окружения
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? (process.env.REACT_APP_API_URL || window.location.origin + '/api')
+  : 'http://localhost:3000/api';
+
+// Заглушка для отсутствующих изображений
+const FALLBACK_IMAGE = "https://via.placeholder.com/300x150?text=Нет+фото";
+
 function UserProfile() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("ПРОФИЛЬ");
@@ -27,6 +35,7 @@ function UserProfile() {
   const [loadingBookmarks, setLoadingBookmarks] = useState(false);
   const [isAddGameModalOpen, setIsAddGameModalOpen] = useState(false);
   const [addingGame, setAddingGame] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState({ show: false, message: '', isError: false });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,7 +53,7 @@ function UserProfile() {
       try {
         setLoading(true);
         
-        const response = await fetch('http://localhost:3000/api/profile', {
+        const response = await fetch(`${API_BASE_URL}/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -61,16 +70,7 @@ function UserProfile() {
           throw new Error('Не удалось загрузить профиль');
         }
         
-        const text = await response.text();
-        let data;
-        
-        try {
-          data = JSON.parse(text);
-        } catch (e) {
-          console.error('Ошибка парсинга JSON:', e);
-          console.error('Полученный текст:', text.substring(0, 200) + '...');
-          throw new Error('Сервер вернул некорректный формат данных');
-        }
+        const data = await response.json();
         
         // Если в localStorage есть данные пользователя, используем их, иначе используем данные из API
         if (savedUser) {
@@ -137,51 +137,62 @@ function UserProfile() {
   }, [user, activeTab]);
 
   const handleLogout = () => {
-    // Удаляем данные пользователя и токен из localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-    // Перенаправляем на главную страницу
     navigate('/');
-    // Перезагружаем страницу
-    window.location.reload();
   };
 
   const handleTabClick = (tabName) => {
     setActiveTab(tabName);
   };
   
+  // Функция для обработки ошибок при загрузке изображений
+  const handleImageError = (e) => {
+    e.target.onerror = null;
+    e.target.src = FALLBACK_IMAGE;
+  };
+  
   // Функция для удаления игры из профиля
   const handleRemoveGame = async (gameId) => {
     try {
-      // Сначала проверяем, является ли пользователь автором игры
-      const game = userGames.find(game => game.game_id === parseInt(gameId));
+      // Показываем сообщение о процессе удаления
+      setDeleteStatus({ 
+        show: true, 
+        message: 'Удаление игры из профиля...', 
+        isError: false 
+      });
       
-      if (!game) {
-        throw new Error('Игра не найдена');
-      }
+      // Удаляем игру из профиля через API
+      await removeGameFromProfile(gameId);
       
-      // Получаем данные о текущем пользователе
-      const userData = JSON.parse(localStorage.getItem('user'));
+      // Обновляем локальный список игр
+      setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
       
-      // Проверяем, является ли пользователь автором игры
-      const isAuthor = game.user_id === userData.id;
+      // Показываем сообщение об успешном удалении
+      setDeleteStatus({ 
+        show: true, 
+        message: 'Игра успешно удалена из профиля', 
+        isError: false 
+      });
       
-      // Спрашиваем пользователя, хочет ли он удалить игру полностью из базы данных
-      if (isAuthor && window.confirm('Вы являетесь автором этой игры. Хотите полностью удалить её из каталога?')) {
-        // Удаляем игру из каталога (и автоматически из профиля)
-        await deleteGameFromCatalog(gameId);
-        // Обновляем список игр
-        setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
-        alert('Игра успешно удалена из каталога');
-      } else {
-        // Просто удаляем игру из профиля пользователя
-        await removeGameFromProfile(gameId);
-        // Обновляем список игр
-        setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
-      }
-    } catch (error) {
-      console.error('Ошибка при удалении игры:', error);
-      alert(error.message || 'Произошла ошибка при удалении игры');
+      // Скрываем сообщение через 3 секунды
+      setTimeout(() => {
+        setDeleteStatus({ show: false, message: '', isError: false });
+      }, 3000);
+    } catch (err) {
+      console.error('Ошибка при удалении игры из профиля:', err);
+      
+      // Показываем сообщение об ошибке
+      setDeleteStatus({ 
+        show: true, 
+        message: `Ошибка при удалении игры: ${err.message || 'Неизвестная ошибка'}`, 
+        isError: true 
+      });
+      
+      // Скрываем сообщение через 5 секунд
+      setTimeout(() => {
+        setDeleteStatus({ show: false, message: '', isError: false });
+      }, 5000);
     }
   };
 
@@ -246,6 +257,54 @@ function UserProfile() {
     }
   };
 
+  // Обработчик удаления игры из каталога (только для администраторов)
+  const handleDeleteGameFromCatalog = async (gameId) => {
+    if (!window.confirm('Вы уверены, что хотите удалить эту игру из каталога? Это действие нельзя отменить.')) {
+      return;
+    }
+    
+    try {
+      // Показываем сообщение о процессе удаления
+      setDeleteStatus({ 
+        show: true, 
+        message: 'Удаление игры из каталога...', 
+        isError: false 
+      });
+      
+      // Удаляем игру из каталога через API
+      await deleteGameFromCatalog(gameId);
+      
+      // Удаляем игру из локального списка
+      setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
+      
+      // Показываем сообщение об успешном удалении
+      setDeleteStatus({ 
+        show: true, 
+        message: 'Игра успешно удалена из каталога', 
+        isError: false 
+      });
+      
+      // Скрываем сообщение через 3 секунды
+      setTimeout(() => {
+        setDeleteStatus({ show: false, message: '', isError: false });
+      }, 3000);
+    } catch (err) {
+      console.error('Ошибка при удалении игры из каталога:', err);
+      
+      // Показываем сообщение об ошибке
+      setDeleteStatus({ 
+        show: true, 
+        message: `Ошибка при удалении игры из каталога: ${err.message || 'Неизвестная ошибка'}`, 
+        isError: true 
+      });
+      
+      // Скрываем сообщение через 5 секунд
+      setTimeout(() => {
+        setDeleteStatus({ show: false, message: '', isError: false });
+      }, 5000);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Загрузка...</div>;
   }
@@ -282,7 +341,11 @@ function UserProfile() {
               <div className="ph-cover"></div>
               <div className="ph-content">
                 <div className="ph-img">
-                  <img src="https://bootdey.com/img/Content/avatar/avatar3.png" alt="Аватар пользователя" />
+                  <img 
+                    src="https://bootdey.com/img/Content/avatar/avatar3.png" 
+                    alt="Аватар пользователя" 
+                    onError={handleImageError}
+                  />
                 </div>
                 <div className="ph-info">
                   <h4 className="m-t-10 m-b-5">{user.username || user.login}</h4>
@@ -319,9 +382,13 @@ function UserProfile() {
                   ) : (
                     <div className="user-games-grid">
                       {userGames.map(game => (
-                        <div key={game.id} className="user-game-card">
+                        <div key={game.game_id} className="user-game-card">
                           <div className="user-game-image">
-                            <img src={game.game_image} alt={game.game_name} />
+                            <img 
+                              src={game.game_image} 
+                              alt={game.game_name} 
+                              onError={handleImageError}
+                            />
                           </div>
                           <div className="user-game-info">
                             <h3>{game.game_name}</h3>
@@ -373,10 +440,7 @@ function UserProfile() {
                             <img 
                               src={bookmark.game_image} 
                               alt={bookmark.game_name}
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = "https://via.placeholder.com/300x150?text=Нет+фото";
-                              }}
+                              onError={handleImageError}
                             />
                             <div className="bookmark-genre">
                               {bookmark.game_genre || 'Не указан'}
@@ -424,6 +488,13 @@ function UserProfile() {
         onClose={closeAddGameModal} 
         onAddGame={handleAddGame} 
       />
+
+      {/* Сообщение о статусе удаления */}
+      {deleteStatus.show && (
+        <div className={`status-message ${deleteStatus.isError ? 'error' : 'success'}`}>
+          {deleteStatus.message}
+        </div>
+      )}
     </>
   );
 }

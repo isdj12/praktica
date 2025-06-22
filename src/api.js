@@ -1,37 +1,46 @@
 // api.js - Функции для взаимодействия с Flask API
 
-// Базовый URL для API
-const API_URL = 'http://127.0.0.1:5000/api';
-// Базовый URL для Flask сервера
-const BASE_URL = 'http://127.0.0.1:5000';
-// URL для Node.js API
-const NODE_API_URL = 'http://localhost:3000/api';
+// Определяем базовый URL API в зависимости от окружения
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? (process.env.REACT_APP_API_URL || window.location.origin + '/api')
+  : 'http://localhost:3000/api';
 
 // Локальное хранилище для закладок, пока нет серверного API
 const LOCAL_BOOKMARKS_KEY = 'user_bookmarks';
 
-// Получить список всех игр и обновить пути к изображениям
-export async function fetchGames() {
+/**
+ * Общая функция для выполнения fetch-запросов с обработкой ошибок
+ */
+async function fetchAPI(url, options = {}) {
   try {
-    console.log('Fetching games from:', `${NODE_API_URL}/games`);
-    const response = await fetch(`${NODE_API_URL}/games`);
+    const response = await fetch(url, options);
     
     if (!response.ok) {
-      throw new Error(`Ошибка API: ${response.statusText}`);
+      const text = await response.text();
+      let errorMessage = `Ошибка API: ${response.statusText}`;
+      
+      try {
+        const errorData = JSON.parse(text);
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        // Если не удалось распарсить JSON, используем текст ответа
+      }
+      
+      throw new Error(errorMessage);
     }
     
     const text = await response.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      console.error('Ошибка парсинга JSON:', e);
-      console.error('Полученный текст:', text.substring(0, 200) + '...');
-      throw new Error('Сервер вернул некорректный формат данных');
-    }
-    
-    console.log('Received games:', data);
-    return data;
+    return text ? JSON.parse(text) : {};
+  } catch (error) {
+    console.error(`Ошибка при запросе к ${url}:`, error);
+    throw error;
+  }
+}
+
+// Получить список всех игр и обновить пути к изображениям
+export async function fetchGames() {
+  try {
+    return await fetchAPI(`${API_BASE_URL}/games`);
   } catch (error) {
     console.error('Ошибка при получении списка игр:', error);
     return [];
@@ -41,25 +50,7 @@ export async function fetchGames() {
 // Получить список популярных игр на основе количества кликов
 export async function fetchPopularGames() {
   try {
-    console.log('Fetching popular games from:', `${NODE_API_URL}/games/popular`);
-    const response = await fetch(`${NODE_API_URL}/games/popular`);
-    
-    if (!response.ok) {
-      throw new Error(`Ошибка API: ${response.statusText}`);
-    }
-    
-    const text = await response.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      console.error('Ошибка парсинга JSON:', e);
-      console.error('Полученный текст:', text.substring(0, 200) + '...');
-      throw new Error('Сервер вернул некорректный формат данных');
-    }
-    
-    console.log('Received popular games:', data);
-    return data;
+    return await fetchAPI(`${API_BASE_URL}/games/popular`);
   } catch (error) {
     console.error('Ошибка при получении списка популярных игр:', error);
     // Если API для популярных игр не реализовано, возвращаем пустой массив
@@ -70,20 +61,7 @@ export async function fetchPopularGames() {
 // Получить информацию об одной игре по ID
 export async function fetchGameById(gameId) {
   try {
-    const response = await fetch(`${NODE_API_URL}/games/${gameId}`);
-    
-    if (!response.ok) {
-      throw new Error(`Ошибка API: ${response.statusText}`);
-    }
-    
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.error('Ошибка парсинга JSON:', e);
-      console.error('Полученный текст:', text.substring(0, 200) + '...');
-      throw new Error('Сервер вернул некорректный формат данных');
-    }
+    return await fetchAPI(`${API_BASE_URL}/games/${gameId}`);
   } catch (error) {
     console.error(`Ошибка при получении игры с ID ${gameId}:`, error);
     return null;
@@ -99,24 +77,11 @@ export async function fetchUserGames() {
       throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
     }
     
-    const response = await fetch(`${NODE_API_URL}/profile/games`, {
+    return await fetchAPI(`${API_BASE_URL}/profile/games`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
-    
-    if (!response.ok) {
-      throw new Error(`Ошибка API: ${response.statusText}`);
-    }
-    
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.error('Ошибка парсинга JSON:', e);
-      console.error('Полученный текст:', text.substring(0, 200) + '...');
-      throw new Error('Сервер вернул некорректный формат данных');
-    }
   } catch (error) {
     console.error('Ошибка при получении игр пользователя:', error);
     return [];
@@ -125,86 +90,36 @@ export async function fetchUserGames() {
 
 // Добавить игру в профиль пользователя
 export async function addGameToProfile(gameId, gameName, gameImage) {
-  try {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
-    }
-    
-    const response = await fetch(`${NODE_API_URL}/profile/games`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ gameId, gameName, gameImage })
-    });
-    
-    if (!response.ok) {
-      const text = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(text);
-        throw new Error(errorData.message || `Ошибка API: ${response.statusText}`);
-      } catch (e) {
-        console.error('Ошибка парсинга JSON:', e);
-        throw new Error(`Ошибка API: ${response.statusText}`);
-      }
-    }
-    
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.error('Ошибка парсинга JSON:', e);
-      return { success: true };
-    }
-  } catch (error) {
-    console.error('Ошибка при добавлении игры в профиль:', error);
-    throw error;
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
   }
+  
+  return await fetchAPI(`${API_BASE_URL}/profile/games`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ gameId, gameName, gameImage })
+  });
 }
 
 // Удалить игру из профиля пользователя
 export async function removeGameFromProfile(gameId) {
-  try {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
-    }
-    
-    const response = await fetch(`${NODE_API_URL}/profile/games/${gameId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    if (!response.ok) {
-      const text = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(text);
-        throw new Error(errorData.message || `Ошибка API: ${response.statusText}`);
-      } catch (e) {
-        console.error('Ошибка парсинга JSON:', e);
-        throw new Error(`Ошибка API: ${response.statusText}`);
-      }
-    }
-    
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.error('Ошибка парсинга JSON:', e);
-      return { success: true };
-    }
-  } catch (error) {
-    console.error('Ошибка при удалении игры из профиля:', error);
-    throw error;
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
   }
+  
+  return await fetchAPI(`${API_BASE_URL}/profile/games/${gameId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
 }
 
 // Проверить, добавлена ли игра в профиль пользователя
@@ -216,24 +131,13 @@ export async function isGameInProfile(gameId) {
       return false;
     }
     
-    const response = await fetch(`${NODE_API_URL}/profile/games/${gameId}`, {
+    const data = await fetchAPI(`${API_BASE_URL}/profile/games/${gameId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
     
-    if (!response.ok) {
-      return false;
-    }
-    
-    const text = await response.text();
-    try {
-      const data = JSON.parse(text);
-      return data.isInProfile;
-    } catch (e) {
-      console.error('Ошибка парсинга JSON:', e);
-      return false;
-    }
+    return data.isInProfile;
   } catch (error) {
     console.error('Ошибка при проверке наличия игры в профиле:', error);
     return false;
@@ -242,52 +146,19 @@ export async function isGameInProfile(gameId) {
 
 // Добавить новую игру в каталог
 export async function addGameToCatalog(gameData) {
-  try {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
-    }
-    
-    console.log('Отправка данных игры на сервер:', gameData);
-    
-    const response = await fetch(`${NODE_API_URL}/games`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: gameData // FormData для отправки файлов
-    });
-    
-    if (!response.ok) {
-      const text = await response.text();
-      let errorMessage = `Ошибка API: ${response.statusText}`;
-      try {
-        const errorData = JSON.parse(text);
-        errorMessage = errorData.message || errorMessage;
-      } catch (e) {
-        console.error('Не удалось прочитать ответ с ошибкой:', e);
-      }
-      throw new Error(errorMessage);
-    }
-    
-    const text = await response.text();
-    let newGame;
-    try {
-      newGame = JSON.parse(text);
-    } catch (e) {
-      console.error('Ошибка парсинга JSON:', e);
-      console.error('Полученный текст:', text.substring(0, 200) + '...');
-      throw new Error('Сервер вернул некорректный формат данных');
-    }
-    
-    console.log('Успешно добавлена игра:', newGame);
-    
-    return newGame;
-  } catch (error) {
-    console.error('Ошибка при добавлении игры в каталог:', error);
-    throw error;
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
   }
+  
+  return await fetchAPI(`${API_BASE_URL}/games`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: gameData // FormData для отправки файлов
+  });
 }
 
 // Получить список закладок пользователя
@@ -301,21 +172,11 @@ export async function fetchUserBookmarks() {
     
     // Пробуем получить закладки с сервера
     try {
-      const response = await fetch(`${NODE_API_URL}/profile/bookmarks`, {
+      return await fetchAPI(`${API_BASE_URL}/profile/bookmarks`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      
-      if (response.ok) {
-        const text = await response.text();
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          console.error('Ошибка парсинга JSON:', e);
-          // Если не удалось распарсить JSON, используем локальное хранилище
-        }
-      }
     } catch (error) {
       console.warn('API для закладок не реализовано на сервере, используем локальное хранилище');
     }
@@ -340,9 +201,8 @@ export async function addGameToBookmarks(gameId) {
     }
     
     // Пробуем добавить закладку через API
-    let serverSuccess = false;
     try {
-      const response = await fetch(`${NODE_API_URL}/profile/bookmarks`, {
+      return await fetchAPI(`${API_BASE_URL}/profile/bookmarks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -350,22 +210,8 @@ export async function addGameToBookmarks(gameId) {
         },
         body: JSON.stringify({ gameId })
       });
-      
-      if (response.ok) {
-        serverSuccess = true;
-        const text = await response.text();
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          console.error('Ошибка парсинга JSON:', e);
-        }
-      }
     } catch (error) {
-      console.warn('API для закладок не реализовано на сервере, используем локальное хранилище');
-    }
-    
-    // Если API не доступно, используем локальное хранилище
-    if (!serverSuccess) {
+      // Если API не доступно, используем локальное хранилище
       // Получаем данные игры
       const gameData = await fetchGameById(gameId);
       if (!gameData) {
@@ -396,8 +242,6 @@ export async function addGameToBookmarks(gameId) {
       
       return { success: true };
     }
-    
-    return { success: true };
   } catch (error) {
     console.error('Ошибка при добавлении игры в закладки:', error);
     throw error;
@@ -414,30 +258,15 @@ export async function removeGameFromBookmarks(gameId) {
     }
     
     // Пробуем удалить закладку через API
-    let serverSuccess = false;
     try {
-      const response = await fetch(`${NODE_API_URL}/profile/bookmarks/${gameId}`, {
+      return await fetchAPI(`${API_BASE_URL}/profile/bookmarks/${gameId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      
-      if (response.ok) {
-        serverSuccess = true;
-        const text = await response.text();
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          console.error('Ошибка парсинга JSON:', e);
-        }
-      }
     } catch (error) {
-      console.warn('API для закладок не реализовано на сервере, используем локальное хранилище');
-    }
-    
-    // Если API не доступно, используем локальное хранилище
-    if (!serverSuccess) {
+      // Если API не доступно, используем локальное хранилище
       const savedBookmarks = localStorage.getItem(LOCAL_BOOKMARKS_KEY);
       if (savedBookmarks) {
         const bookmarks = JSON.parse(savedBookmarks);
@@ -447,8 +276,6 @@ export async function removeGameFromBookmarks(gameId) {
       
       return { success: true };
     }
-    
-    return { success: true };
   } catch (error) {
     console.error('Ошибка при удалении игры из закладок:', error);
     throw error;
@@ -466,33 +293,21 @@ export async function isGameInBookmarks(gameId) {
     
     // Пробуем проверить через API
     try {
-      const response = await fetch(`${NODE_API_URL}/profile/bookmarks/${gameId}`, {
+      const data = await fetchAPI(`${API_BASE_URL}/profile/bookmarks/${gameId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      
-      if (response.ok) {
-        const text = await response.text();
-        try {
-          const data = JSON.parse(text);
-          return data.isInBookmarks;
-        } catch (e) {
-          console.error('Ошибка парсинга JSON:', e);
-        }
-      }
+      return data.isInBookmarks;
     } catch (error) {
-      console.warn('API для закладок не реализовано на сервере, используем локальное хранилище');
+      // Если API не доступно, проверяем в локальном хранилище
+      const savedBookmarks = localStorage.getItem(LOCAL_BOOKMARKS_KEY);
+      if (savedBookmarks) {
+        const bookmarks = JSON.parse(savedBookmarks);
+        return bookmarks.some(bookmark => bookmark.game_id === parseInt(gameId));
+      }
+      return false;
     }
-    
-    // Если API не доступно, проверяем в локальном хранилище
-    const savedBookmarks = localStorage.getItem(LOCAL_BOOKMARKS_KEY);
-    if (savedBookmarks) {
-      const bookmarks = JSON.parse(savedBookmarks);
-      return bookmarks.some(bookmark => bookmark.game_id === parseInt(gameId));
-    }
-    
-    return false;
   } catch (error) {
     console.error('Ошибка при проверке наличия игры в закладках:', error);
     return false;
@@ -528,41 +343,16 @@ export async function getRandomGame() {
  * @returns {Promise<object>} - Результат операции
  */
 export async function deleteGameFromCatalog(gameId) {
-  try {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
-    }
-    
-    const response = await fetch(`${NODE_API_URL}/games/${gameId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    if (!response.ok) {
-      const text = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(text);
-        throw new Error(errorData.message || `Ошибка API: ${response.statusText}`);
-      } catch (e) {
-        console.error('Ошибка парсинга JSON:', e);
-        throw new Error(`Ошибка API: ${response.statusText}`);
-      }
-    }
-    
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.error('Ошибка парсинга JSON:', e);
-      return { success: true, message: 'Игра успешно удалена' };
-    }
-  } catch (error) {
-    console.error('Ошибка при удалении игры из каталога:', error);
-    throw error;
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
   }
+  
+  return await fetchAPI(`${API_BASE_URL}/games/${gameId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
 } 

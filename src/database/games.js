@@ -1,4 +1,46 @@
 import { dbAsync } from './db.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Путь к файлу с данными игр
+const GAMES_FILE = path.join(__dirname, 'games.json');
+
+/**
+ * Загрузка данных игр из файла
+ * @returns {Promise<Array>} Массив объектов игр
+ */
+async function loadGames() {
+  try {
+    const data = await fs.readFile(GAMES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    // Если файл не существует или поврежден, возвращаем пустой массив
+    if (error.code === 'ENOENT') {
+      console.warn('Файл с играми не найден, создаем новый.');
+      await saveGames([]);
+      return [];
+    }
+    console.error('Ошибка при загрузке данных игр:', error);
+    throw new Error(`Не удалось загрузить данные игр: ${error.message}`);
+  }
+}
+
+/**
+ * Сохранение данных игр в файл
+ * @param {Array} games Массив объектов игр
+ * @returns {Promise<void>}
+ */
+async function saveGames(games) {
+  try {
+    await fs.writeFile(GAMES_FILE, JSON.stringify(games, null, 2), 'utf8');
+  } catch (error) {
+    console.error('Ошибка при сохранении данных игр:', error);
+    throw new Error(`Не удалось сохранить данные игр: ${error.message}`);
+  }
+}
 
 /**
  * Добавление новой игры в каталог
@@ -190,35 +232,39 @@ export async function getGameById(id) {
  */
 export async function getAllGames() {
   try {
-    // Получаем список всех игр
-    const games = await dbAsync.all('SELECT * FROM games ORDER BY createdAt DESC');
+    // Получаем все игры из базы данных
+    const games = await dbAsync.all('SELECT * FROM games');
     
     // Для каждой игры получаем теги, скриншоты и клики
-    const gamesWithDetails = await Promise.all(games.map(async (game) => {
+    const result = [];
+    for (const game of games) {
+      // Получаем теги игры
       const tags = await dbAsync.all(
         'SELECT tag FROM game_tags WHERE game_id = ?',
         [game.id]
       );
       
+      // Получаем скриншоты игры
       const screenshots = await dbAsync.all(
         'SELECT screenshot_url FROM game_screenshots WHERE game_id = ?',
         [game.id]
       );
       
+      // Получаем количество кликов
       const clickData = await dbAsync.get(
         'SELECT click_count FROM game_clicks WHERE game_id = ?',
         [game.id]
       );
       
-      return {
+      result.push({
         ...game,
         tags: tags.map(t => t.tag),
         screenshots: screenshots.map(s => s.screenshot_url),
         clicks: clickData ? clickData.click_count : 0
-      };
-    }));
+      });
+    }
     
-    return gamesWithDetails;
+    return result;
   } catch (error) {
     console.error('Ошибка при получении списка игр:', error);
     throw error;

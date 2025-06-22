@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import { register, login, verifyToken } from './database/auth.js';
 import { addGameToUserProfile, getUserGames, removeGameFromUserProfile, isGameInUserProfile } from './database/userGames.js';
 import { addGame, getAllGames, getGameById, getPopularGames, incrementGameClicks, deleteGame } from './database/games.js';
@@ -7,10 +8,17 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+// Загружаем переменные окружения
+dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Создаем директории для загрузки файлов, если они не существуют
 const uploadsDir = path.join(__dirname, '../public/uploads');
@@ -41,9 +49,8 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     // Генерируем уникальное имя файла
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    const uniqueFilename = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, uniqueFilename);
   }
 });
 
@@ -52,18 +59,38 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB лимит
   fileFilter: function (req, file, cb) {
     // Проверяем тип файла
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Только изображения могут быть загружены!'), false);
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Недопустимый тип файла. Разрешены только изображения.'));
     }
+    cb(null, true);
   }
 });
 
+// Настройка CORS для разных окружений
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.ALLOWED_ORIGINS?.split(',') || true
+    : true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400 // кэширование preflight запросов на 24 часа
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+
+// Обслуживание статических файлов
+app.use(express.static(path.join(__dirname, '..')));
+
+// В продакшене добавляем обслуживание статических файлов из билда React
+if (process.env.NODE_ENV === 'production') {
+  const buildPath = path.join(__dirname, '../build');
+  app.use(express.static(buildPath));
+}
 
 // Middleware для проверки токена
 const authMiddleware = (req, res, next) => {
@@ -80,6 +107,26 @@ const authMiddleware = (req, res, next) => {
   } catch (error) {
     return res.status(401).json({ message: 'Неверный токен' });
   }
+};
+
+// Middleware для проверки прав администратора
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Требуются права администратора' });
+  }
+};
+
+// Обработчик ошибок для асинхронных функций
+const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch((error) => {
+    console.error('Ошибка в запросе:', error);
+    res.status(500).json({ 
+      message: 'Внутренняя ошибка сервера',
+      error: process.env.NODE_ENV === 'production' ? undefined : error.message
+    });
+  });
 };
 
 // Маршруты
@@ -213,12 +260,8 @@ app.get('/api/profile/games/:gameId', authMiddleware, async (req, res) => {
 // Добавление новой игры в каталог
 app.post('/api/games', authMiddleware, upload.fields([
   { name: 'image', maxCount: 1 },
-  { name: 'screenshot0', maxCount: 1 },
-  { name: 'screenshot1', maxCount: 1 },
-  { name: 'screenshot2', maxCount: 1 },
-  { name: 'screenshot3', maxCount: 1 },
-  { name: 'screenshot4', maxCount: 1 }
-]), async (req, res) => {
+  { name: 'screenshots', maxCount: 5 }
+]), asyncHandler(async (req, res) => {
   try {
     console.log('Получен запрос на добавление игры:', req.body);
     console.log('Файлы:', req.files);
@@ -239,76 +282,44 @@ app.post('/api/games', authMiddleware, upload.fields([
       releaseDate: req.body.releaseDate || null,
       image: `/uploads/games/${req.files.image[0].filename}`,
       userId: req.user.id, // ID пользователя, добавившего игру
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      tags: req.body.tags ? JSON.parse(req.body.tags) : [],
+      screenshots: req.files.screenshots ? req.files.screenshots.map(file => `/uploads/screenshots/${file.filename}`) : []
     };
 
-    // Собираем теги
-    const tags = [];
-    if (req.body.tag1) tags.push(req.body.tag1);
-    if (req.body.tag2) tags.push(req.body.tag2);
-    if (req.body.tag3) tags.push(req.body.tag3);
-    gameData.tags = tags;
-
-    // Собираем скриншоты
-    const screenshots = [];
-    if (req.files) {
-      for (let i = 0; i < 5; i++) {
-        const screenshotField = `screenshot${i}`;
-        if (req.files[screenshotField]) {
-          screenshots.push(`/uploads/screenshots/${req.files[screenshotField][0].filename}`);
-        }
-      }
-    }
-    gameData.screenshots = screenshots;
-
-    try {
-      // Сохраняем игру в локальной базе данных
-      console.log('Сохраняем игру в БД:', gameData);
-      const newGame = await addGame(gameData);
-      
-      // Добавляем игру в профиль пользователя
-      await addGameToUserProfile(
-        req.user.id,
-        newGame.id,
-        newGame.name,
-        newGame.image
-      );
-      
-      res.status(201).json(newGame);
-    } catch (dbError) {
-      console.error('Ошибка при сохранении игры в БД:', dbError);
-      throw new Error(`Ошибка при сохранении игры: ${dbError.message}`);
-    }
+    // Сохраняем игру в локальной базе данных
+    console.log('Сохраняем игру в БД:', gameData);
+    const newGame = await addGame(gameData);
+    
+    // Добавляем игру в профиль пользователя
+    await addGameToUserProfile(
+      req.user.id,
+      newGame.id,
+      newGame.name,
+      newGame.image
+    );
+    
+    res.status(201).json(newGame);
   } catch (error) {
     console.error('Ошибка при добавлении игры в каталог:', error);
     res.status(500).json({ message: error.message });
   }
-});
+}));
 
 // Получение списка всех игр
-app.get('/api/games', async (req, res) => {
-  try {
-    const games = await getAllGames();
-    res.json(games);
-  } catch (error) {
-    console.error('Ошибка при получении списка игр:', error);
-    res.status(500).json({ message: error.message });
-  }
-});
+app.get('/api/games', asyncHandler(async (req, res) => {
+  const games = await getAllGames();
+  res.json(games);
+}));
 
 // Получение списка популярных игр
-app.get('/api/games/popular', async (req, res) => {
-  try {
-    const popularGames = await getPopularGames();
-    res.json(popularGames);
-  } catch (error) {
-    console.error('Ошибка при получении списка популярных игр:', error);
-    res.status(500).json({ message: error.message });
-  }
-});
+app.get('/api/games/popular', asyncHandler(async (req, res) => {
+  const popularGames = await getPopularGames();
+  res.json(popularGames);
+}));
 
 // Обновление счетчика кликов для игры
-app.post('/api/games/:id/click', async (req, res) => {
+app.post('/api/games/:id/click', asyncHandler(async (req, res) => {
   try {
     const gameId = parseInt(req.params.id);
     const clickCount = await incrementGameClicks(gameId);
@@ -317,10 +328,10 @@ app.post('/api/games/:id/click', async (req, res) => {
     console.error('Ошибка при обновлении счетчика кликов:', error);
     res.status(500).json({ message: error.message });
   }
-});
+}));
 
 // Получение информации об одной игре по ID
-app.get('/api/games/:id', async (req, res) => {
+app.get('/api/games/:id', asyncHandler(async (req, res) => {
   try {
     const gameId = req.params.id;
     const game = await getGameById(gameId);
@@ -329,15 +340,18 @@ app.get('/api/games/:id', async (req, res) => {
       return res.status(404).json({ message: 'Игра не найдена' });
     }
     
+    // Увеличиваем счетчик просмотров
+    await incrementGameClicks(gameId);
+    
     res.json(game);
   } catch (error) {
     console.error(`Ошибка при получении игры с ID ${req.params.id}:`, error);
     res.status(500).json({ message: error.message });
   }
-});
+}));
 
 // Удаление игры из каталога (только для автора игры или администратора)
-app.delete('/api/games/:id', authMiddleware, async (req, res) => {
+app.delete('/api/games/:id', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
   try {
     const gameId = parseInt(req.params.id);
     const userId = req.user.id;
@@ -358,6 +372,27 @@ app.delete('/api/games/:id', authMiddleware, async (req, res) => {
     const success = await deleteGame(gameId);
     
     if (success) {
+      // Удаляем связанные файлы
+      if (game.image && !game.image.startsWith('http')) {
+        try {
+          await fs.promises.unlink(path.join(__dirname, '../public', game.image));
+        } catch (error) {
+          console.error('Ошибка при удалении изображения:', error);
+        }
+      }
+      
+      if (game.screenshots && Array.isArray(game.screenshots)) {
+        for (const screenshot of game.screenshots) {
+          if (!screenshot.startsWith('http')) {
+            try {
+              await fs.promises.unlink(path.join(__dirname, '../public', screenshot));
+            } catch (error) {
+              console.error('Ошибка при удалении скриншота:', error);
+            }
+          }
+        }
+      }
+      
       res.status(200).json({ message: 'Игра успешно удалена' });
     } else {
       res.status(404).json({ message: 'Игра не найдена или не может быть удалена' });
@@ -366,6 +401,21 @@ app.delete('/api/games/:id', authMiddleware, async (req, res) => {
     console.error('Ошибка при удалении игры:', error);
     res.status(500).json({ message: error.message });
   }
+}));
+
+// Обработчик для корневого URL
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../index.html'));
+});
+
+// Маршрут для всех остальных запросов, чтобы React Router работал корректно
+app.get('*', (req, res) => {
+  // Если запрос начинается с /api, то это API запрос
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ message: 'API endpoint not found' });
+  }
+  // Иначе отдаем index.html для клиентской маршрутизации
+  res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 // Запуск сервера

@@ -1,9 +1,14 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getUserForAuth, registerUser } from './users.js';
+import dotenv from 'dotenv';
 
-// Секретный ключ для JWT (в реальном приложении должен быть в переменных окружения)
-const JWT_SECRET = 'your-secret-key-should-be-in-env-file';
+// Загружаем переменные окружения
+dotenv.config();
+
+// Секретный ключ для JWT из переменных окружения или запасной вариант
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-should-be-in-env-file';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 /**
  * Регистрация нового пользователя с хешированием пароля
@@ -91,7 +96,7 @@ function generateToken(user) {
   return jwt.sign(
     { id: user.id, username: user.username },
     JWT_SECRET,
-    { expiresIn: '24h' }
+    { expiresIn: JWT_EXPIRES_IN }
   );
 }
 
