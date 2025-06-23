@@ -164,6 +164,8 @@ body{
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  position: relative;
+  height: 300px;
 }
 
 .foto-title {
@@ -184,6 +186,11 @@ body{
   object-fit: cover;
   object-position: center;
   cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.game-indicator-foto:hover .foto {
+  transform: scale(1.05);
 }
 
 .game-indicator-foto .single-foto {
@@ -331,6 +338,9 @@ body{
   background: #fff;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   perspective: 1000px;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
 }
 
 .game-card-container:hover {
@@ -368,11 +378,19 @@ body{
 .game-title-bar {
   background-color: #3a9ad9;
   color: white;
-  padding: 12px 18px;
+  padding: 10px 15px;
   font-weight: bold;
-  font-size: 20px;
+  font-size: 18px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  /* Фиксированная высота для заголовка */
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .arrow-icon {

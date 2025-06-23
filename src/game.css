@@ -231,7 +231,7 @@
 
 .game-media-section {
   flex: 1;
-  min-width: 300px;
+  min-width: 600px;
   display: flex;
   flex-direction: column;
   gap: 15px;

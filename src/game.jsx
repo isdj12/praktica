@@ -67,9 +67,7 @@ function Game() {
         }
         
         setGame(gameData);
-        if (gameData.screenshots && gameData.screenshots.length > 0) {
-          setSelectedScreenshot(gameData.screenshots[0]);
-        }
+        setSelectedScreenshot(gameData.image);
       } catch (error) {
         console.error('Ошибка при загрузке игры:', error);
       } finally {
