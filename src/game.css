@@ -512,13 +512,15 @@
   }
 }
 
+/* Стили для ссылки на автора */
 .author-link {
-  color: #3a9ad9;
+  color: #4a90e2;
   text-decoration: none;
-  transition: all 0.3s ease;
+  font-weight: 500;
+  transition: color 0.2s ease;
 }
 
 .author-link:hover {
-  color: #ffffff;
-  text-shadow: 0 0 5px rgba(58, 154, 217, 0.8);
+  color: #2c6cb0;
+  text-decoration: underline;
 }

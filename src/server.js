@@ -190,6 +190,42 @@ app.get('/api/profile', authMiddleware, (req, res) => {
   res.json({ user: req.user });
 });
 
+// Получение профиля пользователя по имени пользователя (публичный доступ)
+app.get('/api/users/:username', asyncHandler(async (req, res) => {
+  try {
+    const username = req.params.username;
+    
+    // Получаем базовую информацию о пользователе
+    const user = await dbAsync.get(
+      'SELECT id, username, email, created_at FROM users WHERE username = ?',
+      [username]
+    );
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+    
+    // Получаем игры пользователя
+    const games = await dbAsync.all(
+      'SELECT ug.id, ug.game_id, ug.game_name, ug.game_image, ug.added_at ' +
+      'FROM user_games ug ' +
+      'WHERE ug.user_id = ? ' +
+      'ORDER BY ug.added_at DESC',
+      [user.id]
+    );
+    
+    // Возвращаем публичную информацию о пользователе
+    res.json({
+      username: user.username,
+      createdAt: user.created_at,
+      games: games
+    });
+  } catch (error) {
+    console.error('Ошибка при получении профиля пользователя:', error);
+    res.status(500).json({ message: error.message });
+  }
+}));
+
 // Получение списка игр пользователя
 app.get('/api/profile/games', authMiddleware, async (req, res) => {
   try {

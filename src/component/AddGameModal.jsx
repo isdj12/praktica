@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import '../UserProfile.css';
 
-function AddGameModal({ isOpen, onClose, onAddGame }) {
+function AddGameModal({ isOpen = true, onClose, onAddGame, isLoading }) {
   // Предопределенные списки жанров и тегов
   const availableGenres = [
     "Экшен", "Приключения", "RPG", "Стратегия", "Шутер", 
@@ -58,8 +58,15 @@ function AddGameModal({ isOpen, onClose, onAddGame }) {
   const platformDropdownRef = useRef(null);
   const ageRatingDropdownRef = useRef(null);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(isLoading || false);
   const [submitError, setSubmitError] = useState(null);
+
+  // Обновляем состояние isSubmitting при изменении пропа isLoading
+  useEffect(() => {
+    if (isLoading !== undefined) {
+      setIsSubmitting(isLoading);
+    }
+  }, [isLoading]);
 
   // Обработчик клика вне выпадающих списков
   useEffect(() => {

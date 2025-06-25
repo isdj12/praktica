@@ -495,4 +495,22 @@ export async function deleteGameFromCatalog(gameId) {
   } finally {
     console.log(`=== ЗАВЕРШЕНИЕ УДАЛЕНИЯ ИГРЫ ИЗ КАТАЛОГА ===`);
   }
+}
+
+/**
+ * Получение профиля пользователя по имени пользователя
+ * @param {string} username - Имя пользователя
+ * @returns {Promise<object>} - Данные профиля пользователя
+ */
+export async function fetchUserProfileByUsername(username) {
+  try {
+    if (!username) {
+      throw new Error('Имя пользователя не указано');
+    }
+    
+    return await fetchAPI(`${API_BASE_URL}/users/${username}`);
+  } catch (error) {
+    console.error('Ошибка при получении профиля пользователя:', error);
+    throw error;
+  }
 } 

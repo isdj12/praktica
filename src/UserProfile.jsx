@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import './App.css';
 import Button from './component/button.jsx';
 import { button } from './src.js';
@@ -12,7 +12,8 @@ import {
   addGameToCatalog, 
   fetchUserBookmarks,
   removeGameFromBookmarks,
-  deleteGameFromCatalog
+  deleteGameFromCatalog,
+  fetchUserProfileByUsername
 } from './api.js';
 import AddGameModal from './component/AddGameModal.jsx';
 
@@ -25,6 +26,7 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
 const FALLBACK_IMAGE = "https://via.placeholder.com/300x150?text=Нет+фото";
 
 function UserProfile() {
+  const [searchParams] = useSearchParams();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("ПРОФИЛЬ");
   const [loading, setLoading] = useState(true);
@@ -36,47 +38,77 @@ function UserProfile() {
   const [isAddGameModalOpen, setIsAddGameModalOpen] = useState(false);
   const [addingGame, setAddingGame] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState({ show: false, message: '', isError: false });
+  const [isCurrentUser, setIsCurrentUser] = useState(true);
   const navigate = useNavigate();
+  
+  // Получаем username из URL-параметров
+  const usernameParam = searchParams.get('username');
 
   useEffect(() => {
     // Получаем данные пользователя из localStorage
     const savedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
     
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-    
-    // Проверяем токен и получаем актуальные данные профиля
     const fetchProfile = async () => {
       try {
         setLoading(true);
         
-        const response = await fetch(`${API_BASE_URL}/profile`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        // Если указан username в URL и он отличается от текущего пользователя
+        if (usernameParam) {
+          // Проверяем, не совпадает ли с текущим пользователем
+          const currentUser = savedUser ? JSON.parse(savedUser) : null;
+          if (currentUser && currentUser.username === usernameParam) {
+            setUser(currentUser);
+            setIsCurrentUser(true);
+          } else {
+            // Загружаем профиль другого пользователя
+            try {
+              const profileData = await fetchUserProfileByUsername(usernameParam);
+              setUser({
+                username: profileData.username,
+                createdAt: profileData.createdAt
+              });
+              setUserGames(profileData.games || []);
+              setIsCurrentUser(false);
+            } catch (err) {
+              console.error('Ошибка при загрузке профиля пользователя:', err);
+              setError('Пользователь не найден или произошла ошибка при загрузке профиля');
+            }
           }
-        });
-        
-        if (!response.ok) {
-          if (response.status === 401) {
-            // Если токен недействителен, удаляем его и перенаправляем на страницу входа
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            navigate('/login');
-            return;
+        } else if (token) {
+          // Если нет username в URL, но есть токен - загружаем свой профиль
+          if (savedUser) {
+            setUser(JSON.parse(savedUser));
           }
-          throw new Error('Не удалось загрузить профиль');
-        }
-        
-        const data = await response.json();
-        
-        // Если в localStorage есть данные пользователя, используем их, иначе используем данные из API
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
+          setIsCurrentUser(true);
+          
+          // Проверяем токен через API
+          try {
+            const response = await fetch(`${process.env.NODE_ENV === 'production' 
+              ? (process.env.REACT_APP_API_URL || window.location.origin + '/api')
+              : 'http://localhost:3000/api'}/profile`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (!response.ok) {
+              if (response.status === 401) {
+                // Если токен недействителен, удаляем его и перенаправляем на страницу входа
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                navigate('/login');
+                return;
+              }
+              throw new Error('Не удалось загрузить профиль');
+            }
+          } catch (err) {
+            console.error('Ошибка при проверке токена:', err);
+          }
         } else {
-          setUser(data.user);
+          // Если нет ни username, ни токена - перенаправляем на страницу входа
+          navigate('/login');
+          return;
         }
         
         setError(null);
@@ -96,11 +128,11 @@ function UserProfile() {
     return () => {
       document.body.classList.remove('user-profile-page');
     };
-  }, [navigate]);
+  }, [navigate, usernameParam]);
   
-  // Загружаем игры пользователя
+  // Загружаем игры пользователя только если это текущий пользователь
   useEffect(() => {
-    if (user && activeTab === "ПРОФИЛЬ") {
+    if (user && isCurrentUser && activeTab === "ПРОФИЛЬ") {
       const loadUserGames = async () => {
         try {
           setLoadingGames(true);
@@ -115,11 +147,11 @@ function UserProfile() {
       
       loadUserGames();
     }
-  }, [user, activeTab]);
+  }, [user, activeTab, isCurrentUser]);
 
-  // Загружаем закладки пользователя
+  // Загружаем закладки пользователя только если это текущий пользователь
   useEffect(() => {
-    if (user && activeTab === "ЗАКЛАДКИ") {
+    if (user && isCurrentUser && activeTab === "ЗАКЛАДКИ") {
       const loadUserBookmarks = async () => {
         try {
           setLoadingBookmarks(true);
@@ -134,7 +166,7 @@ function UserProfile() {
       
       loadUserBookmarks();
     }
-  }, [user, activeTab]);
+  }, [user, activeTab, isCurrentUser]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -445,6 +477,103 @@ function UserProfile() {
     }
   };
 
+  // Отрендерить содержимое профиля
+  const renderProfileContent = () => {
+    if (loadingGames) {
+      return <div className="loading-games">Загрузка игр...</div>;
+    }
+    
+    if (userGames.length === 0) {
+      return (
+        <div className="no-games">
+          <p>В профиле пока нет игр</p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="profile-games">
+        <div className="profile-games-grid">
+          {userGames.map((game) => (
+            <div key={game.id} className="profile-game-card">
+              <div className="profile-game-image" onClick={() => navigate(`/game?id=${game.game_id}`)}>
+                <img 
+                  src={game.game_image} 
+                  alt={game.game_name} 
+                  onError={handleImageError}
+                />
+              </div>
+              <div className="profile-game-info">
+                <h3 onClick={() => navigate(`/game?id=${game.game_id}`)}>{game.game_name}</h3>
+                <div className="profile-game-meta">
+                  <span>Добавлено: {formatDate(game.added_at)}</span>
+                </div>
+                {isCurrentUser && (
+                  <div className="profile-game-actions">
+                    <button 
+                      className="btn xs danger" 
+                      onClick={() => handleRemoveGame(game.game_id, game)}
+                    >
+                      Удалить из профиля
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Отрендерить содержимое закладок
+  const renderBookmarksContent = () => {
+    if (loadingBookmarks) {
+      return <div className="loading-games">Загрузка закладок...</div>;
+    }
+    
+    if (userBookmarks.length === 0) {
+      return (
+        <div className="no-games">
+          <p>В закладках пока нет игр</p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="profile-games">
+        <div className="profile-games-grid">
+          {userBookmarks.map((bookmark) => (
+            <div key={bookmark.id} className="profile-game-card">
+              <div className="profile-game-image" onClick={() => navigate(`/game?id=${bookmark.game_id}`)}>
+                <img 
+                  src={bookmark.game_image} 
+                  alt={bookmark.game_name} 
+                  onError={handleImageError}
+                />
+              </div>
+              <div className="profile-game-info">
+                <h3 onClick={() => navigate(`/game?id=${bookmark.game_id}`)}>{bookmark.game_name}</h3>
+                <div className="profile-game-meta">
+                  <span>{bookmark.game_genre}</span>
+                  {bookmark.added_at && <span>Добавлено: {formatDate(bookmark.added_at)}</span>}
+                </div>
+                <div className="profile-game-actions">
+                  <button 
+                    className="btn xs danger" 
+                    onClick={() => handleRemoveBookmark(bookmark.game_id)}
+                  >
+                    Удалить из закладок
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return <div className="loading">Загрузка...</div>;
   }
@@ -488,168 +617,56 @@ function UserProfile() {
                   />
                 </div>
                 <div className="ph-info">
-                  <h4 className="m-t-10 m-b-5">{user.username || user.login}</h4>
-                  <p className="m-b-10">{user.email ? user.email : 'Пользователь'}</p>
-                  <button className="btn sm prim m-b m-r" onClick={openAddGameModal}>Добавить игру</button>
-                  <button className="btn sm info m-b" onClick={handleLogout}>Выйти из аккаунта</button>
+                  <h4 className="m-t-10 m-b-5">{user.username}</h4>
+                  <p className="m-b-10">{isCurrentUser ? (user.email ? user.email : 'Пользователь') : 'Профиль пользователя'}</p>
+                  {isCurrentUser && (
+                    <>
+                      <button className="btn sm prim m-b m-r" onClick={openAddGameModal}>Добавить игру</button>
+                      <button className="btn sm info m-b" onClick={handleLogout}>Выйти из аккаунта</button>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="ph-tab nav nav-tabs">
                 <button className={`nav-link_ ${activeTab === "ПРОФИЛЬ" ? "active show" : ""}`} onClick={() => handleTabClick("ПРОФИЛЬ")}>
                   ПРОФИЛЬ
                 </button>
-                <button className={`nav-link_ ${activeTab === "ЗАКЛАДКИ" ? "active show" : ""}`} onClick={() => handleTabClick("ЗАКЛАДКИ")}>
-                  ЗАКЛАДКИ
-                </button>
+                {isCurrentUser && (
+                  <button className={`nav-link_ ${activeTab === "ЗАКЛАДКИ" ? "active show" : ""}`} onClick={() => handleTabClick("ЗАКЛАДКИ")}>
+                    ЗАКЛАДКИ
+                  </button>
+                )}
               </div>
             </div>
-            
-            {/* Содержимое вкладки "ПРОФИЛЬ" */}
-            {activeTab === "ПРОФИЛЬ" && (
-              <div className="profile-tab-content">
-                <div className="user-games-section">
-                  <h2>Мои игры</h2>
-                  
-                  {loadingGames ? (
-                    <div className="loading-games">Загрузка игр...</div>
-                  ) : userGames.length === 0 ? (
-                    <div className="no-games-message">
-                      <p>У вас пока нет добавленных игр в профиль.</p>
-                      <button className="btn prim" onClick={() => navigate('/')}>
-                        Перейти в каталог игр
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="user-games-grid">
-                      {userGames.map(game => {
-                        console.log('Рендеринг игры:', game);
-                        return (
-                        <div key={game.game_id} className="user-game-card">
-                          <div className="user-game-image">
-                            <img 
-                              src={game.game_image} 
-                              alt={game.game_name} 
-                              onError={handleImageError}
-                            />
-                          </div>
-                          <div className="user-game-info">
-                            <h3>{game.game_name}</h3>
-                            <p>Добавлено: {new Date(game.added_at).toLocaleDateString()}</p>
-                            <div className="user-game-actions">
-                              <button 
-                                className="btn sm info"
-                                onClick={() => navigate(`/game?id=${game.game_id}`)}
-                              >
-                                Открыть
-                              </button>
-                              <button 
-                                className="btn sm dang"
-                                onClick={() => handleRemoveGame(game.game_id, game)}
-                              >
-                                Удалить
-                              </button>
-                              {(user && user.role === 'admin' || (game.userId && game.userId === user.id)) && (
-                                <button 
-                                  className="btn sm warn"
-                                  onClick={() => {
-                                    console.log(`Нажата кнопка удаления из каталога для игры:`, game);
-                                    const idToDelete = game.catalogId || game.game_id;
-                                    console.log(`Используем ID для удаления: ${idToDelete}`);
-                                    handleDeleteGameFromCatalog(idToDelete);
-                                  }}
-                                  title="Удалить игру из каталога (только для администраторов и авторов)"
-                                >
-                                  Удалить из каталога
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )})}
-                    </div>
-                  )}
+            <div className="profile-body">
+              <div className="tab-content p-0">
+                <div className={`tab-pane fade ${activeTab === "ПРОФИЛЬ" ? "active show" : ""}`}>
+                  {renderProfileContent()}
                 </div>
+                {isCurrentUser && (
+                  <div className={`tab-pane fade ${activeTab === "ЗАКЛАДКИ" ? "active show" : ""}`}>
+                    {renderBookmarksContent()}
+                  </div>
+                )}
               </div>
-            )}
-            
-            {/* Содержимое вкладки "ЗАКЛАДКИ" */}
-            {activeTab === "ЗАКЛАДКИ" && (
-              <div className="profile-tab-content">
-                <div className="user-bookmarks-section">
-                  <h2>Мои закладки</h2>
-                  
-                  {loadingBookmarks ? (
-                    <div className="loading-games">Загрузка закладок...</div>
-                  ) : userBookmarks.length === 0 ? (
-                    <div className="no-games-message">
-                      <p>У вас пока нет добавленных игр в закладки.</p>
-                      <p>Добавляйте игры других пользователей в закладки, чтобы быстро находить их позже.</p>
-                      <button className="btn prim" onClick={() => navigate('/katalog')}>
-                        Перейти в каталог игр
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="bookmarks-grid">
-                      {userBookmarks.map(bookmark => (
-                        <div key={bookmark.id} className="bookmark-card">
-                          <div className="bookmark-image-container">
-                            <img 
-                              src={bookmark.game_image} 
-                              alt={bookmark.game_name}
-                              onError={handleImageError}
-                            />
-                            <div className="bookmark-genre">
-                              {bookmark.game_genre || 'Не указан'}
-                            </div>
-                            <div className="bookmark-overlay">
-                              <div className="bookmark-date">
-                                {formatDate(bookmark.added_at)}
-                              </div>
-                              <div className="bookmark-author">
-                                Автор: {bookmark.author_name || "Неизвестно"}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="bookmark-content">
-                            <h3 className="bookmark-title">{bookmark.game_name}</h3>
-                            <div className="bookmark-actions">
-                              <button 
-                                className="bookmark-btn open"
-                                onClick={() => navigate(`/game?id=${bookmark.game_id}`)}
-                              >
-                                ОТКРЫТЬ
-                              </button>
-                              <button 
-                                className="bookmark-btn remove"
-                                onClick={() => handleRemoveBookmark(bookmark.game_id)}
-                              >
-                                УДАЛИТЬ
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
       
-      {/* Модальное окно добавления игры */}
-      <AddGameModal 
-        isOpen={isAddGameModalOpen} 
-        onClose={closeAddGameModal} 
-        onAddGame={handleAddGame} 
-      />
-
-      {/* Сообщение о статусе удаления */}
       {deleteStatus.show && (
         <div className={`status-message ${deleteStatus.isError ? 'error' : 'success'}`}>
           {deleteStatus.message}
         </div>
+      )}
+      
+      {isAddGameModalOpen && (
+        <AddGameModal 
+          isOpen={true}
+          onClose={closeAddGameModal} 
+          onAddGame={handleAddGame}
+          isLoading={addingGame}
+        />
       )}
     </>
   );

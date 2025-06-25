@@ -355,7 +355,7 @@ function Game() {
                       <div className="game-detail-item">
                         <span className="game-detail-label">Автор:</span>
                         <span className="game-detail-value">
-                          <Link to={`/user-profile?login=${game.author}`} className="author-link">
+                          <Link to={`/profile?username=${game.author}`} className="author-link">
                             {game.author}
                           </Link>
                         </span>

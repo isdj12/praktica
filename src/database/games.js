@@ -214,11 +214,25 @@ export async function getGameById(id) {
       [id]
     );
     
+    // Получаем информацию об авторе игры
+    let authorName = null;
+    if (game.userId) {
+      const authorData = await dbAsync.get(
+        'SELECT username FROM users WHERE id = ?',
+        [game.userId]
+      );
+      
+      if (authorData) {
+        authorName = authorData.username;
+      }
+    }
+    
     return {
       ...game,
       tags: tags.map(t => t.tag),
       screenshots: screenshots.map(s => s.screenshot_url),
-      clicks: clickData ? clickData.click_count : 0
+      clicks: clickData ? clickData.click_count : 0,
+      author: authorName
     };
   } catch (error) {
     console.error(`Ошибка при получении игры с ID ${id}:`, error);
@@ -256,11 +270,25 @@ export async function getAllGames() {
         [game.id]
       );
       
+      // Получаем информацию об авторе игры
+      let authorName = null;
+      if (game.userId) {
+        const authorData = await dbAsync.get(
+          'SELECT username FROM users WHERE id = ?',
+          [game.userId]
+        );
+        
+        if (authorData) {
+          authorName = authorData.username;
+        }
+      }
+      
       result.push({
         ...game,
         tags: tags.map(t => t.tag),
         screenshots: screenshots.map(s => s.screenshot_url),
-        clicks: clickData ? clickData.click_count : 0
+        clicks: clickData ? clickData.click_count : 0,
+        author: authorName
       });
     }
     
