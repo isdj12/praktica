@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { dbAsync } from './database/db.js';
 
 // Загружаем переменные окружения
 dotenv.config();
@@ -193,8 +194,29 @@ app.get('/api/profile', authMiddleware, (req, res) => {
 app.get('/api/profile/games', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const games = await getUserGames(userId);
-    res.json(games);
+    let games = await getUserGames(userId);
+    
+    // Дополняем информацию о каждой игре данными из каталога
+    const enhancedGames = [];
+    for (const game of games) {
+      try {
+        // Получаем дополнительную информацию о игре из каталога
+        const gameDetails = await getGameById(game.game_id);
+        if (gameDetails) {
+          // Добавляем userId и другие данные из каталога
+          game.userId = gameDetails.userId;
+          game.catalogId = gameDetails.id; // добавляем явный ID из каталога
+          game.authorId = gameDetails.userId; // добавляем ID автора для лучшей ясности
+        }
+        console.log(`Обогащена игра ${game.game_id}: userId=${game.userId}, catalogId=${game.catalogId}`);
+        enhancedGames.push(game);
+      } catch (error) {
+        console.error(`Ошибка при получении деталей игры ${game.game_id}:`, error);
+        enhancedGames.push(game); // Добавляем игру без дополнительной информации
+      }
+    }
+    
+    res.json(enhancedGames);
   } catch (error) {
     console.error('Ошибка при получении игр пользователя:', error);
     res.status(500).json({ message: error.message });
@@ -230,7 +252,36 @@ app.delete('/api/profile/games/:gameId', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const gameId = req.params.gameId;
     
-    const success = await removeGameFromUserProfile(userId, gameId);
+    console.log(`Запрос на удаление игры из профиля. userId: ${userId}, gameId/recordId: ${gameId}`);
+    
+    // Проверяем, является ли переданный ID записью в таблице user_games
+    let success = false;
+    
+    // Сначала пробуем удалить по ID записи в таблице user_games
+    try {
+      const result = await dbAsync.run(
+        'DELETE FROM user_games WHERE id = ? AND user_id = ?',
+        [gameId, userId]
+      );
+      success = result.changes > 0;
+      console.log(`Попытка удаления по ID записи: ${success ? 'успешно' : 'не найдено'}`);
+    } catch (err) {
+      console.error('Ошибка при удалении по ID записи:', err);
+    }
+    
+    // Если не удалось удалить по ID записи, пробуем удалить по game_id
+    if (!success) {
+      try {
+        const result = await dbAsync.run(
+          'DELETE FROM user_games WHERE game_id = ? AND user_id = ?',
+          [gameId, userId]
+        );
+        success = result.changes > 0;
+        console.log(`Попытка удаления по game_id: ${success ? 'успешно' : 'не найдено'}`);
+      } catch (err) {
+        console.error('Ошибка при удалении по game_id:', err);
+      }
+    }
     
     if (success) {
       res.status(200).json({ message: 'Игра успешно удалена из профиля' });
@@ -351,7 +402,7 @@ app.get('/api/games/:id', asyncHandler(async (req, res) => {
 }));
 
 // Удаление игры из каталога (только для автора игры или администратора)
-app.delete('/api/games/:id', authMiddleware, isAdmin, asyncHandler(async (req, res) => {
+app.delete('/api/games/:id', authMiddleware, asyncHandler(async (req, res) => {
   try {
     const gameId = parseInt(req.params.id);
     const userId = req.user.id;

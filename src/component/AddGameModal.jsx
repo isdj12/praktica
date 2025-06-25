@@ -58,6 +58,9 @@ function AddGameModal({ isOpen, onClose, onAddGame }) {
   const platformDropdownRef = useRef(null);
   const ageRatingDropdownRef = useRef(null);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+
   // Обработчик клика вне выпадающих списков
   useEffect(() => {
     function handleClickOutside(event) {
@@ -143,10 +146,30 @@ function AddGameModal({ isOpen, onClose, onAddGame }) {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Проверка размера файла (до 5 МБ)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors({...errors, image: 'Размер изображения не должен превышать 5 МБ'});
+        e.target.value = '';
+        return;
+      }
+      
+      // Проверка типа файла
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        setErrors({...errors, image: 'Разрешены только форматы: JPG, PNG, WEBP, GIF'});
+        e.target.value = '';
+        return;
+      }
+      
       setFormData(prev => ({
         ...prev,
         image: file
       }));
+      
+      // Очистка ошибки, если она была
+      if (errors.image) {
+        setErrors({...errors, image: undefined});
+      }
       
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -159,18 +182,62 @@ function AddGameModal({ isOpen, onClose, onAddGame }) {
   const handleScreenshotsChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      setFormData(prev => ({
-        ...prev,
-        screenshots: [...prev.screenshots, ...files]
-      }));
-      
-      files.forEach(file => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setScreenshotPreviews(prev => [...prev, reader.result]);
-        };
-        reader.readAsDataURL(file);
-      });
+      try {
+        // Ограничиваем количество скриншотов до 3
+        if (formData.screenshots.length + files.length > 3) {
+          alert('Максимальное количество скриншотов - 3');
+          e.target.value = '';
+          return;
+        }
+
+        // Проверка каждого файла
+        const validFiles = [];
+        
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          
+          // Проверка размера файла (до 1 МБ)
+          if (file.size > 1 * 1024 * 1024) {
+            alert(`Файл ${file.name} слишком большой. Максимальный размер 1 МБ.`);
+            continue;
+          }
+          
+          // Проверка типа файла
+          const allowedTypes = ['image/jpeg', 'image/png'];
+          if (!allowedTypes.includes(file.type)) {
+            alert(`Файл ${file.name} имеет неподдерживаемый формат. Разрешены только JPG и PNG.`);
+            continue;
+          }
+          
+          validFiles.push(file);
+        }
+        
+        if (validFiles.length === 0) {
+          e.target.value = '';
+          return;
+        }
+        
+        // Добавляем файлы в состояние
+        setFormData(prev => ({
+          ...prev,
+          screenshots: [...prev.screenshots, ...validFiles]
+        }));
+        
+        // Генерируем превью для каждого файла
+        validFiles.forEach(file => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setScreenshotPreviews(prev => [...prev, reader.result]);
+          };
+          reader.readAsDataURL(file);
+        });
+      } catch (error) {
+        console.error('Ошибка при обработке скриншотов:', error);
+        alert('Произошла ошибка при обработке скриншотов. Пожалуйста, попробуйте еще раз с меньшими изображениями.');
+      } finally {
+        // Очищаем input, чтобы можно было загрузить те же файлы повторно
+        e.target.value = '';
+      }
     }
   };
 
@@ -184,39 +251,122 @@ function AddGameModal({ isOpen, onClose, onAddGame }) {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = 'Название игры обязательно';
-    if (!formData.description.trim()) newErrors.description = 'Описание обязательно';
-    if (!formData.platform.trim()) newErrors.platform = 'Платформа обязательна';
-    if (!formData.genre.trim()) newErrors.genre = 'Жанр обязателен';
-    if (!formData.image) newErrors.image = 'Изображение обязательно';
     
+    // Проверка обязательных полей
+    if (!formData.name.trim()) newErrors.name = 'Название игры обязательно';
+    else if (formData.name.trim().length > 100) newErrors.name = 'Название игры слишком длинное (максимум 100 символов)';
+    
+    if (!formData.description.trim()) newErrors.description = 'Описание обязательно';
+    else if (formData.description.trim().length > 2000) newErrors.description = 'Описание слишком длинное (максимум 2000 символов)';
+    
+    if (!formData.platform.trim()) newErrors.platform = 'Платформа обязательна';
+    else if (formData.platform.trim().length > 50) newErrors.platform = 'Название платформы слишком длинное';
+    
+    if (!formData.genre.trim()) newErrors.genre = 'Жанр обязателен';
+    else if (formData.genre.trim().length > 50) newErrors.genre = 'Название жанра слишком длинное';
+    
+    if (!formData.image) newErrors.image = 'Основное изображение обязательно';
+    
+    // Если выбрана дата выпуска, проверяем её валидность
+    if (formData.releaseDate) {
+      const releaseDate = new Date(formData.releaseDate);
+      const currentDate = new Date();
+      const minDate = new Date('1970-01-01');
+      
+      if (isNaN(releaseDate.getTime())) {
+        newErrors.releaseDate = 'Неверный формат даты';
+      } else if (releaseDate > currentDate) {
+        newErrors.releaseDate = 'Дата не может быть в будущем';
+      } else if (releaseDate < minDate) {
+        newErrors.releaseDate = 'Дата слишком старая';
+      }
+    }
+    
+    // Устанавливаем все ошибки сразу
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    
+    // Проверяем, есть ли ошибки
+    const hasErrors = Object.keys(newErrors).length > 0;
+    
+    // Если есть ошибки, прокручиваем к первой ошибке
+    if (hasErrors) {
+      const firstErrorField = Object.keys(newErrors)[0];
+      const element = document.getElementById(firstErrorField);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.focus();
+      }
+    }
+    
+    return !hasErrors;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setSubmitError(null); // Сбрасываем ошибку перед отправкой
     
     if (validateForm()) {
-      // Создаем объект FormData для отправки файлов
-      const gameData = new FormData();
-      gameData.append('name', formData.name);
-      gameData.append('description', formData.description);
-      formData.tags.forEach((tag, index) => {
-        gameData.append(`tag${index + 1}`, tag);
-      });
-      gameData.append('platform', formData.platform);
-      gameData.append('multiplayer', formData.multiplayer);
-      gameData.append('ageRating', formData.ageRating);
-      gameData.append('releaseDate', formData.releaseDate);
-      gameData.append('genre', formData.genre);
-      gameData.append('image', formData.image);
+      setIsSubmitting(true); // Устанавливаем состояние загрузки
       
-      formData.screenshots.forEach((screenshot, index) => {
-        gameData.append(`screenshot${index}`, screenshot);
-      });
-      
-      onAddGame(gameData);
+      try {
+        // Создаем объект FormData для отправки файлов
+        const gameData = new FormData();
+        
+        // Добавляем текстовые поля
+        gameData.append('name', formData.name.trim());
+        gameData.append('description', formData.description.trim());
+        
+        // Добавляем теги (максимум 3)
+        for (let i = 0; i < Math.min(formData.tags.length, 3); i++) {
+          gameData.append(`tag${i+1}`, formData.tags[i]);
+        }
+        
+        gameData.append('platform', formData.platform.trim());
+        gameData.append('multiplayer', formData.multiplayer);
+        
+        if (formData.ageRating) {
+          gameData.append('ageRating', formData.ageRating);
+        }
+        
+        if (formData.releaseDate) {
+          gameData.append('releaseDate', formData.releaseDate);
+        }
+        
+        gameData.append('genre', formData.genre.trim());
+        
+        // Добавляем основное изображение
+        gameData.append('image', formData.image);
+        
+        // Добавляем скриншоты (максимум 3)
+        if (formData.screenshots && formData.screenshots.length > 0) {
+          const maxScreenshots = Math.min(formData.screenshots.length, 3);
+          
+          for (let i = 0; i < maxScreenshots; i++) {
+            const screenshot = formData.screenshots[i];
+            if (screenshot instanceof File) {
+              // Используем простые имена файлов
+              gameData.append('screenshots', screenshot);
+            }
+          }
+        }
+        
+        // Вызываем функцию добавления игры
+        onAddGame(gameData)
+          .then(() => {
+            // Успешное добавление игры
+            setIsSubmitting(false);
+            // Остальная логика обработки успеха уже в родительском компоненте
+          })
+          .catch(error => {
+            console.error('Ошибка при добавлении игры:', error);
+            setSubmitError(error.message || 'Произошла ошибка при добавлении игры');
+            setIsSubmitting(false);
+          });
+      } catch (error) {
+        console.error('Ошибка при подготовке данных:', error);
+        setSubmitError(error.message || 'Произошла ошибка при подготовке данных');
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -539,8 +689,16 @@ function AddGameModal({ isOpen, onClose, onAddGame }) {
           
           <div className="form-actions">
             <button type="button" className="btn sm dang" onClick={onClose}>Отмена</button>
-            <button type="submit" className="btn sm prim">Добавить игру</button>
+            <button type="submit" className="btn sm prim" disabled={isSubmitting}>
+              {isSubmitting ? 'Добавление...' : 'Добавить игру'}
+            </button>
           </div>
+          
+          {submitError && (
+            <div className="submit-error-message">
+              <span className="error-icon">⚠️</span> {submitError}
+            </div>
+          )}
         </form>
       </div>
     </div>

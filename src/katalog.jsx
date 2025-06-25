@@ -33,6 +33,7 @@ function Katalog() {
     const loadGames = async () => {
       try {
         setLoading(true);
+        setError(null); // Сбрасываем предыдущую ошибку, если она была
         const gamesData = await fetchGames();
         console.log('Загруженные игры:', gamesData);
         setGames(gamesData);
@@ -40,7 +41,7 @@ function Katalog() {
         setError(null);
       } catch (err) {
         console.error('Ошибка при загрузке игр:', err);
-        setError('Не удалось загрузить игры. Пожалуйста, попробуйте позже.');
+        setError(err.message || 'Не удалось загрузить игры. Пожалуйста, попробуйте позже.');
       } finally {
         setLoading(false);
       }
@@ -311,6 +312,20 @@ function Katalog() {
                           <span className="detail-label">Дата:</span>
                           <span className="detail-value">{formatDate(game.releaseDate)}</span>
                         </div>
+                        {game.author && (
+                          <div className="game-card-detail">
+                            <span className="detail-label">Автор:</span>
+                            <span className="detail-value">
+                              <Link 
+                                to={`/user-profile?login=${game.author}`} 
+                                className="author-link"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {game.author}
+                              </Link>
+                            </span>
+                          </div>
+                        )}
                       </div>
                       
                       <p className="game-card-description">

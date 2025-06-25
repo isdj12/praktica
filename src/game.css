@@ -511,3 +511,14 @@
     font-size: 14px;
   }
 }
+
+.author-link {
+  color: #3a9ad9;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.author-link:hover {
+  color: #ffffff;
+  text-shadow: 0 0 5px rgba(58, 154, 217, 0.8);
+}

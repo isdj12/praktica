@@ -6,7 +6,7 @@ import Poisk from './component/poisk.jsx'
 import Profile from './component/profile.jsx'
 import original from './assets/original.png'
 import { useState, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { 
   addGameToProfile, 
   isGameInProfile, 
@@ -30,6 +30,7 @@ function Game() {
   const [addGameMessage, setAddGameMessage] = useState(null);
   const [bookmarkMessage, setBookmarkMessage] = useState(null);
   const [selectedScreenshot, setSelectedScreenshot] = useState(null);
+  const [error, setError] = useState(null);
   
   // Функция для выхода из аккаунта
   const handleLogout = () => {
@@ -53,6 +54,7 @@ function Game() {
     const loadGame = async () => {
       try {
         setLoading(true);
+        setError(null);
         
         if (!gameId) {
           navigate('/');
@@ -70,6 +72,7 @@ function Game() {
         setSelectedScreenshot(gameData.image);
       } catch (error) {
         console.error('Ошибка при загрузке игры:', error);
+        setError('Ошибка при загрузке данных игры. Пожалуйста, попробуйте позже.');
       } finally {
         setLoading(false);
       }
@@ -87,6 +90,7 @@ function Game() {
           setIsInProfile(result);
         } catch (error) {
           console.error('Ошибка при проверке наличия игры в профиле:', error);
+          // Не показываем ошибку пользователю, просто записываем в консоль
         }
       };
       
@@ -103,6 +107,7 @@ function Game() {
           setIsInBookmarks(result);
         } catch (error) {
           console.error('Ошибка при проверке наличия игры в закладках:', error);
+          // Не показываем ошибку пользователю, просто записываем в консоль
         }
       };
       
@@ -208,6 +213,8 @@ function Game() {
       <div className="game-details-container">
         {loading ? (
           <div className="loading">Загрузка...</div>
+        ) : error ? (
+          <div className="error-message">{error}</div>
         ) : game ? (
           <div className="game-layout">
             <div className="game-header">
@@ -347,7 +354,11 @@ function Game() {
                     {game.author && (
                       <div className="game-detail-item">
                         <span className="game-detail-label">Автор:</span>
-                        <span className="game-detail-value">{game.author}</span>
+                        <span className="game-detail-value">
+                          <Link to={`/user-profile?login=${game.author}`} className="author-link">
+                            {game.author}
+                          </Link>
+                        </span>
                       </div>
                     )}
                   </div>

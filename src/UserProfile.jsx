@@ -152,26 +152,82 @@ function UserProfile() {
     e.target.src = FALLBACK_IMAGE;
   };
   
-  // Функция для удаления игры из профиля
-  const handleRemoveGame = async (gameId) => {
+  // Функция для удаления игры из профиля и каталога
+  const handleRemoveGame = async (gameId, game) => {
+    console.log(`=== НАЧАЛО УДАЛЕНИЯ ИГРЫ ===`);
+    console.log(`Игра для удаления:`, game);
+    
     try {
       // Показываем сообщение о процессе удаления
       setDeleteStatus({ 
         show: true, 
-        message: 'Удаление игры из профиля...', 
+        message: 'Удаление игры...', 
         isError: false 
       });
       
-      // Удаляем игру из профиля через API
-      await removeGameFromProfile(gameId);
+      // Определяем ID для каталога и профиля
+      const catalogId = game.catalogId || game.game_id;
+      // Важно: для удаления из профиля используем ID записи в таблице user_games
+      const profileId = game.id;
       
-      // Обновляем локальный список игр
-      setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
+      console.log(`ID записи в профиле: ${profileId}, ID игры: ${game.game_id}, ID в каталоге: ${catalogId}`);
+      
+      // Проверяем права на удаление из каталога
+      const canDeleteFromCatalog = user && (
+        user.role === 'admin' || 
+        (game.userId && game.userId === user.id) || 
+        (game.authorId && game.authorId === user.id)
+      );
+      
+      console.log(`Пользователь может удалить игру из каталога: ${canDeleteFromCatalog}`);
+      
+      try {
+        // Сначала удаляем из профиля
+        console.log(`Удаляем игру из профиля с ID записи: ${profileId}`);
+        
+        // Используем game_id для удаления из профиля, так как это ID в таблице user_games
+        await removeGameFromProfile(game.game_id);
+        console.log(`Игра успешно удалена из профиля`);
+        
+        // Если есть права, удаляем также из каталога
+        if (canDeleteFromCatalog) {
+          try {
+            console.log(`Удаляем игру из каталога с ID: ${catalogId}`);
+            await deleteGameFromCatalog(catalogId);
+            console.log(`Игра успешно удалена из каталога`);
+          } catch (catalogError) {
+            console.error(`Ошибка при удалении из каталога: ${catalogError.message}`);
+            // Ошибка при удалении из каталога не критична, продолжаем
+          }
+        }
+      } catch (error) {
+        console.error(`Ошибка при удалении из профиля: ${error.message}`);
+        
+        // Если не удалось удалить из профиля, но есть права на удаление из каталога,
+        // пытаемся удалить из каталога
+        if (canDeleteFromCatalog) {
+          console.log(`Пытаемся удалить игру из каталога с ID: ${catalogId}`);
+          await deleteGameFromCatalog(catalogId);
+          console.log(`Игра успешно удалена из каталога`);
+        } else {
+          // Если ни одно удаление не удалось, пробрасываем ошибку дальше
+          throw error;
+        }
+      }
+      
+      // Обновляем локальный список игр независимо от результата
+      setUserGames(prevGames => {
+        const newGames = prevGames.filter(g => g.game_id !== parseInt(game.game_id));
+        console.log(`Обновлен список игр: было ${prevGames.length}, стало ${newGames.length}`);
+        return newGames;
+      });
       
       // Показываем сообщение об успешном удалении
       setDeleteStatus({ 
         show: true, 
-        message: 'Игра успешно удалена из профиля', 
+        message: canDeleteFromCatalog 
+          ? 'Игра успешно удалена из профиля и каталога' 
+          : 'Игра успешно удалена из профиля', 
         isError: false 
       });
       
@@ -180,7 +236,7 @@ function UserProfile() {
         setDeleteStatus({ show: false, message: '', isError: false });
       }, 3000);
     } catch (err) {
-      console.error('Ошибка при удалении игры из профиля:', err);
+      console.error('Ошибка при удалении игры:', err);
       
       // Показываем сообщение об ошибке
       setDeleteStatus({ 
@@ -189,22 +245,56 @@ function UserProfile() {
         isError: true 
       });
       
-      // Скрываем сообщение через 5 секунд
+      // Скрываем сообщение через 5 секунды
       setTimeout(() => {
         setDeleteStatus({ show: false, message: '', isError: false });
       }, 5000);
+    } finally {
+      console.log(`=== ЗАВЕРШЕНИЕ УДАЛЕНИЯ ИГРЫ ===`);
     }
   };
 
   // Функция для удаления игры из закладок
   const handleRemoveBookmark = async (gameId) => {
     try {
+      // Показываем сообщение о процессе удаления
+      setDeleteStatus({ 
+        show: true, 
+        message: 'Удаление игры из закладок...', 
+        isError: false 
+      });
+      
+      // Удаляем игру из закладок через API
       await removeGameFromBookmarks(gameId);
+      
       // Обновляем список закладок
       setUserBookmarks(prevBookmarks => prevBookmarks.filter(bookmark => bookmark.game_id !== parseInt(gameId)));
+      
+      // Показываем сообщение об успешном удалении
+      setDeleteStatus({ 
+        show: true, 
+        message: 'Игра успешно удалена из закладок', 
+        isError: false 
+      });
+      
+      // Скрываем сообщение через 3 секунды
+      setTimeout(() => {
+        setDeleteStatus({ show: false, message: '', isError: false });
+      }, 3000);
     } catch (error) {
       console.error('Ошибка при удалении игры из закладок:', error);
-      alert(error.message || 'Произошла ошибка при удалении закладки');
+      
+      // Показываем сообщение об ошибке
+      setDeleteStatus({ 
+        show: true, 
+        message: `Ошибка при удалении игры из закладок: ${error.message || 'Неизвестная ошибка'}`, 
+        isError: true 
+      });
+      
+      // Скрываем сообщение через 5 секунд
+      setTimeout(() => {
+        setDeleteStatus({ show: false, message: '', isError: false });
+      }, 5000);
     }
   };
   
@@ -218,13 +308,25 @@ function UserProfile() {
     setIsAddGameModalOpen(false);
   };
   
-  // Обработчик добавления новой игры
+  // Функция добавления новой игры
   const handleAddGame = async (gameData) => {
     try {
       setAddingGame(true);
+      setError(null); // Сбрасываем предыдущую ошибку
       
-      // Добавляем игру в каталог и автоматически в профиль пользователя
-      const newGame = await addGameToCatalog(gameData);
+      // Получаем токен из localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Необходима авторизация');
+      }
+      
+      console.log('Отправка данных игры на сервер...');
+      
+      // Вызываем API с передачей токена
+      const result = await addGameToCatalog(gameData, token);
+      
+      console.log('Игра успешно добавлена:', result);
       
       // Обновляем список игр пользователя
       const updatedGames = await fetchUserGames();
@@ -233,12 +335,35 @@ function UserProfile() {
       // Закрываем модальное окно
       closeAddGameModal();
       
-      // Показываем сообщение об успешном добавлении
-      alert('Игра успешно добавлена в каталог и ваш профиль!');
+      // Показываем уведомление об успехе
+      setDeleteStatus({ 
+        show: true, 
+        message: 'Игра успешно добавлена в каталог!', 
+        isError: false 
+      });
       
+      // Скрываем уведомление через 3 секунды
+      setTimeout(() => {
+        setDeleteStatus({ show: false, message: '', isError: false });
+      }, 3000);
+      
+      return result;
     } catch (error) {
       console.error('Ошибка при добавлении игры:', error);
-      alert(error.message || 'Произошла ошибка при добавлении игры');
+      
+      // Показываем уведомление об ошибке
+      setDeleteStatus({ 
+        show: true, 
+        message: `Ошибка: ${error.message || 'Произошла ошибка при добавлении игры'}`, 
+        isError: true 
+      });
+      
+      // Скрываем уведомление через 5 секунд
+      setTimeout(() => {
+        setDeleteStatus({ show: false, message: '', isError: false });
+      }, 5000);
+      
+      throw error;
     } finally {
       setAddingGame(false);
     }
@@ -257,9 +382,15 @@ function UserProfile() {
     }
   };
 
-  // Обработчик удаления игры из каталога (только для администраторов)
+  // Обработчик удаления игры из каталога (только для администраторов и авторов)
   const handleDeleteGameFromCatalog = async (gameId) => {
+    // Гарантируем, что ID игры - число
+    const catalogId = parseInt(gameId);
+    
+    console.log(`Попытка удаления игры из каталога. ID игры: ${catalogId}, тип: ${typeof catalogId}`);
+    
     if (!window.confirm('Вы уверены, что хотите удалить эту игру из каталога? Это действие нельзя отменить.')) {
+      console.log('Пользователь отменил удаление игры');
       return;
     }
     
@@ -271,11 +402,20 @@ function UserProfile() {
         isError: false 
       });
       
+      console.log(`Вызов API для удаления игры с ID ${catalogId} из каталога`);
+      
       // Удаляем игру из каталога через API
-      await deleteGameFromCatalog(gameId);
+      await deleteGameFromCatalog(catalogId);
+      
+      console.log(`Игра с ID ${catalogId} успешно удалена из каталога`);
       
       // Удаляем игру из локального списка
-      setUserGames(prevGames => prevGames.filter(game => game.game_id !== parseInt(gameId)));
+      setUserGames(prevGames => {
+        console.log(`Обновление списка игр после удаления. Текущее количество: ${prevGames.length}`);
+        const newGames = prevGames.filter(game => game.game_id !== parseInt(gameId));
+        console.log(`Новое количество игр: ${newGames.length}`);
+        return newGames;
+      });
       
       // Показываем сообщение об успешном удалении
       setDeleteStatus({ 
@@ -381,7 +521,9 @@ function UserProfile() {
                     </div>
                   ) : (
                     <div className="user-games-grid">
-                      {userGames.map(game => (
+                      {userGames.map(game => {
+                        console.log('Рендеринг игры:', game);
+                        return (
                         <div key={game.game_id} className="user-game-card">
                           <div className="user-game-image">
                             <img 
@@ -402,14 +544,28 @@ function UserProfile() {
                               </button>
                               <button 
                                 className="btn sm dang"
-                                onClick={() => handleRemoveGame(game.game_id)}
+                                onClick={() => handleRemoveGame(game.game_id, game)}
                               >
                                 Удалить
                               </button>
+                              {(user && user.role === 'admin' || (game.userId && game.userId === user.id)) && (
+                                <button 
+                                  className="btn sm warn"
+                                  onClick={() => {
+                                    console.log(`Нажата кнопка удаления из каталога для игры:`, game);
+                                    const idToDelete = game.catalogId || game.game_id;
+                                    console.log(`Используем ID для удаления: ${idToDelete}`);
+                                    handleDeleteGameFromCatalog(idToDelete);
+                                  }}
+                                  title="Удалить игру из каталога (только для администраторов и авторов)"
+                                >
+                                  Удалить из каталога
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   )}
                 </div>

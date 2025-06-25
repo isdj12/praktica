@@ -1059,3 +1059,20 @@ body.user-profile-page {
   }
 }
 
+.submit-error-message {
+  background-color: rgba(217, 83, 58, 0.2);
+  color: #ff6b6b;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 15px;
+  font-size: 14px;
+  border-left: 4px solid #d9533a;
+  display: flex;
+  align-items: center;
+}
+
+.error-icon {
+  font-size: 18px;
+  margin-right: 10px;
+}
+

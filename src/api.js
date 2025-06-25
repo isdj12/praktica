@@ -17,13 +17,16 @@ async function fetchAPI(url, options = {}) {
     
     if (!response.ok) {
       const text = await response.text();
-      let errorMessage = `Ошибка API: ${response.statusText}`;
+      let errorMessage = `Ошибка API: ${response.statusText || 'Внутренняя ошибка сервера'}`;
       
       try {
         const errorData = JSON.parse(text);
         errorMessage = errorData.message || errorMessage;
       } catch (e) {
         // Если не удалось распарсить JSON, используем текст ответа
+        if (text && text.trim()) {
+          errorMessage = text;
+        }
       }
       
       throw new Error(errorMessage);
@@ -33,6 +36,10 @@ async function fetchAPI(url, options = {}) {
     return text ? JSON.parse(text) : {};
   } catch (error) {
     console.error(`Ошибка при запросе к ${url}:`, error);
+    // Проверяем, является ли ошибка проблемой сети
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('Нет соединения с сервером. Пожалуйста, проверьте подключение к интернету и повторите попытку.');
+    }
     throw error;
   }
 }
@@ -108,18 +115,63 @@ export async function addGameToProfile(gameId, gameName, gameImage) {
 
 // Удалить игру из профиля пользователя
 export async function removeGameFromProfile(gameId) {
-  const token = localStorage.getItem('token');
+  console.log(`=== НАЧАЛО УДАЛЕНИЯ ИГРЫ ИЗ ПРОФИЛЯ ===`);
+  console.log(`Получен ID игры: ${gameId} (тип: ${typeof gameId})`);
   
-  if (!token) {
-    throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
-  }
-  
-  return await fetchAPI(`${API_BASE_URL}/profile/games/${gameId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`
+  try {
+    // Проверка и преобразование ID
+    if (!gameId) {
+      throw new Error('Не указан ID игры для удаления из профиля');
     }
-  });
+    
+    // Гарантируем, что ID - число
+    const id = parseInt(gameId);
+    console.log(`Преобразованный ID игры: ${id}`);
+    
+    if (isNaN(id)) {
+      throw new Error(`Некорректный ID игры: ${gameId}`);
+    }
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
+    }
+    
+    // Отправляем запрос на удаление по game_id
+    console.log(`Отправляем запрос DELETE на ${API_BASE_URL}/profile/games/${id}`);
+    
+    // Простой fetch запрос
+    const response = await fetch(`${API_BASE_URL}/profile/games/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    console.log(`Получен ответ: ${response.status} ${response.statusText}`);
+    
+    // Обработка ошибок
+    if (!response.ok) {
+      let errorText = await response.text();
+      console.error(`Ошибка ответа: ${errorText}`);
+      
+      if (response.status === 401) {
+        throw new Error('Требуется авторизация');
+      } else if (response.status === 404) {
+        throw new Error('Игра не найдена в профиле');
+      } else {
+        throw new Error(`Ошибка при удалении игры из профиля: ${response.status}`);
+      }
+    }
+    
+    console.log(`Игра успешно удалена из профиля`);
+    return { success: true };
+  } catch (error) {
+    console.error(`ОШИБКА при удалении игры из профиля: ${error.message}`);
+    throw error;
+  } finally {
+    console.log(`=== ЗАВЕРШЕНИЕ УДАЛЕНИЯ ИГРЫ ИЗ ПРОФИЛЯ ===`);
+  }
 }
 
 // Проверить, добавлена ли игра в профиль пользователя
@@ -145,20 +197,62 @@ export async function isGameInProfile(gameId) {
 }
 
 // Добавить новую игру в каталог
-export async function addGameToCatalog(gameData) {
-  const token = localStorage.getItem('token');
-  
-  if (!token) {
-    throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
+export const addGameToCatalog = async (gameData, token) => {
+  try {
+    if (!token) {
+      throw new Error('Требуется авторизация');
+    }
+    
+    if (!gameData) {
+      throw new Error('Отсутствуют данные игры');
+    }
+
+    // Проверяем, что gameData - это FormData
+    if (!(gameData instanceof FormData)) {
+      throw new Error('Неверный формат данных для загрузки');
+    }
+    
+    // Отправляем FormData как есть, без дополнительной обработки
+    const response = await fetch(`${API_BASE_URL}/games`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: gameData
+    });
+
+    if (!response.ok) {
+      // Обработка типичных ошибок сервера
+      if (response.status === 413) {
+        throw new Error('Файлы слишком большие. Максимальный размер - 1МБ');
+      } else if (response.status === 415) {
+        throw new Error('Неподдерживаемый формат файлов. Используйте JPEG или PNG');
+      } else if (response.status === 400) {
+        const errorData = await response.json();
+        if (errorData.error && errorData.error.includes('Unexpected field')) {
+          throw new Error('Ошибка загрузки файлов: неверное имя поля');
+        }
+        throw new Error(errorData.message || 'Ошибка валидации данных');
+      } else if (response.status === 401) {
+        throw new Error('Необходима авторизация');
+      } else if (response.status === 403) {
+        throw new Error('Недостаточно прав для выполнения операции');
+      } else {
+        throw new Error('Ошибка при добавлении игры');
+      }
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Ошибка при добавлении игры:', error);
+    throw error;
   }
-  
-  return await fetchAPI(`${API_BASE_URL}/games`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    },
-    body: gameData // FormData для отправки файлов
-  });
+};
+
+// Функция для получения расширения файла
+function getFileExtension(filename) {
+  return filename.split('.').pop().toLowerCase() || 'jpg';
 }
 
 // Получить список закладок пользователя
@@ -339,20 +433,66 @@ export async function getRandomGame() {
 
 /**
  * Удаление игры из каталога
- * @param {number} gameId - ID игры
+ * @param {number|string} gameId - ID игры
  * @returns {Promise<object>} - Результат операции
  */
 export async function deleteGameFromCatalog(gameId) {
-  const token = localStorage.getItem('token');
+  console.log(`=== НАЧАЛО УДАЛЕНИЯ ИГРЫ ИЗ КАТАЛОГА ===`);
+  console.log(`Получен ID: ${gameId} (тип: ${typeof gameId})`);
   
-  if (!token) {
-    throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
-  }
-  
-  return await fetchAPI(`${API_BASE_URL}/games/${gameId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`
+  try {
+    // Проверка и преобразование ID
+    if (!gameId) {
+      throw new Error('Не указан ID игры для удаления');
     }
-  });
+    
+    // Гарантируем, что ID - число
+    const id = parseInt(gameId);
+    console.log(`Преобразованный ID: ${id}`);
+    
+    if (isNaN(id)) {
+      throw new Error(`Некорректный ID игры: ${gameId}`);
+    }
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
+    }
+    
+    console.log(`Отправляем запрос DELETE на ${API_BASE_URL}/games/${id}`);
+    
+    // Простой fetch запрос без лишних проверок
+    const response = await fetch(`${API_BASE_URL}/games/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    console.log(`Получен ответ: ${response.status} ${response.statusText}`);
+    
+    // Обработка ошибок
+    if (!response.ok) {
+      let errorText = await response.text();
+      console.error(`Ошибка ответа: ${errorText}`);
+      
+      if (response.status === 401) {
+        throw new Error('Требуется авторизация');
+      } else if (response.status === 403) {
+        throw new Error('Недостаточно прав для удаления игры');
+      } else if (response.status === 404) {
+        throw new Error('Игра не найдена');
+      } else {
+        throw new Error(`Ошибка при удалении игры: ${response.status}`);
+      }
+    }
+    
+    console.log(`Игра успешно удалена из каталога`);
+    return { success: true };
+  } catch (error) {
+    console.error(`ОШИБКА при удалении игры: ${error.message}`);
+    throw error;
+  } finally {
+    console.log(`=== ЗАВЕРШЕНИЕ УДАЛЕНИЯ ИГРЫ ИЗ КАТАЛОГА ===`);
+  }
 } 

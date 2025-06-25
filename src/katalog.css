@@ -41,7 +41,7 @@
   width: 100%;
   max-width: none;
   box-shadow: 0 0 25px rgba(58, 154, 217, 0.9);
-  border: 3px solid #3a9ad9;
+  border: 3px solid white;
   height: auto;
   min-height: 600px;
   flex: 1;
@@ -533,4 +533,15 @@ body {
   .katalog-container {
     flex-direction: column;
   }
+}
+
+.author-link {
+  color: #3a9ad9;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.author-link:hover {
+  color: #ffffff;
+  text-shadow: 0 0 5px rgba(58, 154, 217, 0.8);
 }
