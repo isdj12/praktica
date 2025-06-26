@@ -448,7 +448,7 @@ export async function deleteGameFromCatalog(gameId) {
     
     // Гарантируем, что ID - число
     const id = parseInt(gameId);
-    console.log(`Преобразованный ID: ${id}`);
+    console.log(`Преобразованный ID игры: ${id}`);
     
     if (isNaN(id)) {
       throw new Error(`Некорректный ID игры: ${gameId}`);
@@ -459,9 +459,9 @@ export async function deleteGameFromCatalog(gameId) {
       throw new Error('Токен не найден. Пожалуйста, войдите в систему.');
     }
     
+    // Отправляем запрос на удаление игры
     console.log(`Отправляем запрос DELETE на ${API_BASE_URL}/games/${id}`);
     
-    // Простой fetch запрос без лишних проверок
     const response = await fetch(`${API_BASE_URL}/games/${id}`, {
       method: 'DELETE',
       headers: {
@@ -479,7 +479,7 @@ export async function deleteGameFromCatalog(gameId) {
       if (response.status === 401) {
         throw new Error('Требуется авторизация');
       } else if (response.status === 403) {
-        throw new Error('Недостаточно прав для удаления игры');
+        throw new Error('У вас нет прав для удаления этой игры');
       } else if (response.status === 404) {
         throw new Error('Игра не найдена');
       } else {
@@ -490,11 +490,88 @@ export async function deleteGameFromCatalog(gameId) {
     console.log(`Игра успешно удалена из каталога`);
     return { success: true };
   } catch (error) {
-    console.error(`ОШИБКА при удалении игры: ${error.message}`);
+    console.error(`ОШИБКА при удалении игры из каталога: ${error.message}`);
     throw error;
   } finally {
     console.log(`=== ЗАВЕРШЕНИЕ УДАЛЕНИЯ ИГРЫ ИЗ КАТАЛОГА ===`);
   }
+}
+
+/**
+ * Загрузка файла игры (ZIP-архива)
+ * @param {number|string} gameId - ID игры
+ * @param {File} file - Файл для загрузки (ZIP)
+ * @returns {Promise<object>} - Результат операции
+ */
+export async function uploadGameFile(gameId, file) {
+  try {
+    // Проверки
+    if (!gameId) {
+      throw new Error('Не указан ID игры');
+    }
+    
+    if (!file) {
+      throw new Error('Файл не выбран');
+    }
+    
+    // Проверяем формат файла
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      throw new Error('Можно загружать только ZIP-архивы');
+    }
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Требуется авторизация');
+    }
+    
+    // Создаем FormData для отправки файла
+    const formData = new FormData();
+    formData.append('gameFile', file);
+    
+    // Отправляем запрос
+    const response = await fetch(`${API_BASE_URL}/games/${gameId}/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      // Обработка ошибок
+      if (response.status === 401) {
+        throw new Error('Требуется авторизация');
+      } else if (response.status === 403) {
+        throw new Error('У вас нет прав для загрузки файла к этой игре');
+      } else if (response.status === 404) {
+        throw new Error('Игра не найдена');
+      } else if (response.status === 413) {
+        throw new Error('Файл слишком большой. Максимальный размер - 50МБ');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Ошибка при загрузке файла');
+      }
+    }
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Ошибка при загрузке файла игры:', error);
+    throw error;
+  }
+}
+
+/**
+ * Получение URL для скачивания файла игры
+ * @param {number|string} gameId - ID игры
+ * @returns {string} - URL для скачивания
+ */
+export function getGameFileDownloadUrl(gameId) {
+  if (!gameId) {
+    throw new Error('Не указан ID игры');
+  }
+  
+  return `${API_BASE_URL}/games/${gameId}/download`;
 }
 
 /**

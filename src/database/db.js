@@ -56,6 +56,19 @@ async function initDatabase() {
       )
     `);
 
+    // Таблица для хранения файлов игр
+    await dbAsync.exec(`
+      CREATE TABLE IF NOT EXISTS game_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
+      )
+    `);
+
     console.log('База данных инициализирована успешно');
   } catch (error) {
     console.error('Ошибка при инициализации базы данных:', error);

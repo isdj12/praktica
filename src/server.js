@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { register, login, verifyToken } from './database/auth.js';
 import { addGameToUserProfile, getUserGames, removeGameFromUserProfile, isGameInUserProfile } from './database/userGames.js';
-import { addGame, getAllGames, getGameById, getPopularGames, incrementGameClicks, deleteGame } from './database/games.js';
+import { addGame, getAllGames, getGameById, getPopularGames, incrementGameClicks, deleteGame, addGameFile, getGameFile } from './database/games.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -25,6 +25,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const uploadsDir = path.join(__dirname, '../public/uploads');
 const gameImagesDir = path.join(uploadsDir, 'games');
 const screenshotsDir = path.join(uploadsDir, 'screenshots');
+const gameFilesDir = path.join(uploadsDir, 'gamefiles');
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -35,6 +36,9 @@ if (!fs.existsSync(gameImagesDir)) {
 if (!fs.existsSync(screenshotsDir)) {
   fs.mkdirSync(screenshotsDir, { recursive: true });
 }
+if (!fs.existsSync(gameFilesDir)) {
+  fs.mkdirSync(gameFilesDir, { recursive: true });
+}
 
 // Настройка хранилища для загрузки файлов
 const storage = multer.diskStorage({
@@ -44,6 +48,8 @@ const storage = multer.diskStorage({
       cb(null, gameImagesDir);
     } else if (file.fieldname.startsWith('screenshot')) {
       cb(null, screenshotsDir);
+    } else if (file.fieldname === 'gameFile') {
+      cb(null, gameFilesDir);
     } else {
       cb(null, uploadsDir);
     }
@@ -57,12 +63,19 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB лимит
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB лимит (увеличен для ZIP файлов)
   fileFilter: function (req, file, cb) {
     // Проверяем тип файла
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.mimetype)) {
-      return cb(new Error('Недопустимый тип файла. Разрешены только изображения.'));
+    if (file.fieldname === 'image' || file.fieldname.startsWith('screenshot')) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.mimetype)) {
+        return cb(new Error('Недопустимый тип файла. Разрешены только изображения.'));
+      }
+    } else if (file.fieldname === 'gameFile') {
+      // Проверяем, что это ZIP файл по расширению
+      if (!file.originalname.toLowerCase().endsWith('.zip')) {
+        return cb(new Error('Недопустимый тип файла. Разрешены только ZIP архивы.'));
+      }
     }
     cb(null, true);
   }
@@ -347,7 +360,8 @@ app.get('/api/profile/games/:gameId', authMiddleware, async (req, res) => {
 // Добавление новой игры в каталог
 app.post('/api/games', authMiddleware, upload.fields([
   { name: 'image', maxCount: 1 },
-  { name: 'screenshots', maxCount: 5 }
+  { name: 'screenshots', maxCount: 5 },
+  { name: 'gameFile', maxCount: 1 }
 ]), asyncHandler(async (req, res) => {
   try {
     console.log('Получен запрос на добавление игры:', req.body);
@@ -385,6 +399,18 @@ app.post('/api/games', authMiddleware, upload.fields([
       newGame.name,
       newGame.image
     );
+    
+    // Если загружен файл игры, сохраняем его
+    if (req.files.gameFile && req.files.gameFile.length > 0) {
+      const gameFile = req.files.gameFile[0];
+      const { originalname, filename, size } = gameFile;
+      
+      // Путь относительно публичной директории
+      const relativePath = `/uploads/gamefiles/${filename}`;
+      
+      // Сохраняем информацию о файле в базе данных
+      await addGameFile(newGame.id, originalname, relativePath, size);
+    }
     
     res.status(201).json(newGame);
   } catch (error) {
@@ -433,6 +459,81 @@ app.get('/api/games/:id', asyncHandler(async (req, res) => {
     res.json(game);
   } catch (error) {
     console.error(`Ошибка при получении игры с ID ${req.params.id}:`, error);
+    res.status(500).json({ message: error.message });
+  }
+}));
+
+// Загрузка файла игры
+app.post('/api/games/:id/upload', authMiddleware, upload.single('gameFile'), asyncHandler(async (req, res) => {
+  try {
+    const gameId = parseInt(req.params.id);
+    const userId = req.user.id;
+    
+    // Проверяем наличие файла
+    if (!req.file) {
+      return res.status(400).json({ message: 'Файл не загружен' });
+    }
+    
+    // Получаем информацию об игре
+    const game = await getGameById(gameId);
+    
+    if (!game) {
+      return res.status(404).json({ message: 'Игра не найдена' });
+    }
+    
+    // Проверяем, является ли пользователь автором игры или администратором
+    if (game.userId !== userId && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'У вас нет прав для загрузки файла к этой игре' });
+    }
+    
+    const { originalname, filename, path: filePath, size } = req.file;
+    
+    // Путь относительно публичной директории
+    const relativePath = `/uploads/gamefiles/${filename}`;
+    
+    // Добавляем информацию о файле в базу данных
+    const gameFile = await addGameFile(gameId, originalname, relativePath, size);
+    
+    res.status(201).json({ 
+      message: 'Файл игры успешно загружен',
+      gameFile 
+    });
+  } catch (error) {
+    console.error('Ошибка при загрузке файла игры:', error);
+    res.status(500).json({ message: error.message });
+  }
+}));
+
+// Скачивание файла игры
+app.get('/api/games/:id/download', asyncHandler(async (req, res) => {
+  try {
+    const gameId = parseInt(req.params.id);
+    
+    // Получаем информацию о файле игры
+    const gameFile = await getGameFile(gameId);
+    
+    if (!gameFile) {
+      return res.status(404).json({ message: 'Файл игры не найден' });
+    }
+    
+    // Полный путь к файлу на сервере
+    const fullPath = path.join(__dirname, '../public', gameFile.file_path);
+    
+    // Проверяем существование файла
+    try {
+      await fs.promises.access(fullPath);
+    } catch (error) {
+      return res.status(404).json({ message: 'Файл не найден на сервере' });
+    }
+    
+    // Устанавливаем заголовки для скачивания
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(gameFile.filename)}"`);
+    res.setHeader('Content-Type', 'application/zip');
+    
+    // Отправляем файл
+    res.sendFile(fullPath);
+  } catch (error) {
+    console.error('Ошибка при скачивании файла игры:', error);
     res.status(500).json({ message: error.message });
   }
 }));

@@ -1213,3 +1213,10 @@ body.user-profile-page {
   min-height: 300px;
 }
 
+.form-helper-text {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 5px;
+  line-height: 1.3;
+}
+

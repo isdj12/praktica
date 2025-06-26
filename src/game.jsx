@@ -5,14 +5,16 @@ import { button } from './src.js'
 import Poisk from './component/poisk.jsx'
 import Profile from './component/profile.jsx'
 import original from './assets/original.png'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { 
   addGameToProfile, 
   isGameInProfile, 
   fetchGameById, 
   addGameToBookmarks, 
-  isGameInBookmarks 
+  isGameInBookmarks,
+  uploadGameFile,
+  getGameFileDownloadUrl
 } from './api.js'
 
 function Game() {
@@ -31,6 +33,9 @@ function Game() {
   const [bookmarkMessage, setBookmarkMessage] = useState(null);
   const [selectedScreenshot, setSelectedScreenshot] = useState(null);
   const [error, setError] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState(null);
+  const fileInputRef = useRef(null);
   
   // Функция для выхода из аккаунта
   const handleLogout = () => {
@@ -194,6 +199,94 @@ function Game() {
     }
   };
 
+  // Функция для загрузки файла игры
+  const handleFileUpload = async (event) => {
+    event.preventDefault();
+    
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
+    
+    if (!game) return;
+    
+    // Проверяем, является ли пользователь автором игры
+    if (user.username !== game.author && user.role !== 'admin') {
+      setUploadMessage({
+        type: 'error',
+        text: 'Загружать файлы игры может только её автор'
+      });
+      
+      setTimeout(() => {
+        setUploadMessage(null);
+      }, 3000);
+      
+      return;
+    }
+    
+    const files = fileInputRef.current.files;
+    
+    if (!files || files.length === 0) {
+      setUploadMessage({
+        type: 'error',
+        text: 'Пожалуйста, выберите файл для загрузки'
+      });
+      return;
+    }
+    
+    const file = files[0];
+    
+    // Проверяем, что это ZIP-файл
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      setUploadMessage({
+        type: 'error',
+        text: 'Можно загружать только ZIP-архивы'
+      });
+      return;
+    }
+    
+    try {
+      setUploading(true);
+      setUploadMessage(null);
+      
+      await uploadGameFile(game.id, file);
+      
+      // Обновляем данные игры после успешной загрузки
+      const updatedGame = await fetchGameById(game.id);
+      setGame(updatedGame);
+      
+      setUploadMessage({
+        type: 'success',
+        text: 'Файл игры успешно загружен!'
+      });
+      
+      // Очищаем поле выбора файла
+      fileInputRef.current.value = null;
+    } catch (error) {
+      console.error('Ошибка при загрузке файла игры:', error);
+      setUploadMessage({
+        type: 'error',
+        text: error.message || 'Произошла ошибка при загрузке файла'
+      });
+    } finally {
+      setUploading(false);
+      
+      // Скрыть сообщение через 5 секунд
+      setTimeout(() => {
+        setUploadMessage(null);
+      }, 5000);
+    }
+  };
+  
+  // Функция для скачивания файла игры
+  const handleDownloadGame = () => {
+    if (!game || !game.gameFile) return;
+    
+    // Открываем ссылку для скачивания в новой вкладке
+    const downloadUrl = getGameFileDownloadUrl(game.id);
+    window.open(downloadUrl, '_blank');
+  };
+
   return (
     <>
       <div className="header-container">
@@ -314,6 +407,49 @@ function Game() {
                   {bookmarkMessage && (
                     <div className={`message ${bookmarkMessage.type}`}>
                       {bookmarkMessage.text}
+                    </div>
+                  )}
+                  
+                  {/* Кнопка скачивания, если файл игры загружен */}
+                  {game.gameFile && (
+                    <button 
+                      className="btn download" 
+                      onClick={handleDownloadGame}
+                    >
+                      Скачать игру
+                    </button>
+                  )}
+                  
+                  {/* Загрузка файла игры (только для автора) */}
+                  {isLoggedIn && user && game && (user.username === game.author || user.role === 'admin') && (
+                    <div className="game-upload-section">
+                      <form onSubmit={handleFileUpload} className="upload-form">
+                        <div className="file-input-wrapper">
+                          <input 
+                            type="file" 
+                            id="gameFile" 
+                            ref={fileInputRef}
+                            accept=".zip"
+                            disabled={uploading}
+                          />
+                          <label htmlFor="gameFile" className="file-label">
+                            {uploading ? 'Загрузка...' : 'Выберите ZIP-файл'}
+                          </label>
+                        </div>
+                        <button 
+                          type="submit" 
+                          className="btn upload" 
+                          disabled={uploading}
+                        >
+                          {uploading ? 'Загрузка...' : 'Загрузить файл игры'}
+                        </button>
+                      </form>
+                      
+                      {uploadMessage && (
+                        <div className={`message ${uploadMessage.type}`}>
+                          {uploadMessage.text}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

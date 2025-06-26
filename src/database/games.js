@@ -214,6 +214,15 @@ export async function getGameById(id) {
       [id]
     );
     
+    // Получаем информацию о файле игры
+    let gameFile = null;
+    try {
+      gameFile = await getGameFile(id);
+    } catch (error) {
+      console.error(`Ошибка при получении файла для игры с ID ${id}:`, error);
+      // Игнорируем ошибку, чтобы не прерывать загрузку данных игры
+    }
+    
     // Получаем информацию об авторе игры
     let authorName = null;
     if (game.userId) {
@@ -232,6 +241,7 @@ export async function getGameById(id) {
       tags: tags.map(t => t.tag),
       screenshots: screenshots.map(s => s.screenshot_url),
       clicks: clickData ? clickData.click_count : 0,
+      gameFile,
       author: authorName
     };
   } catch (error) {
@@ -376,6 +386,9 @@ export async function deleteGame(gameId) {
       // Удаляем связанные записи из таблицы game_clicks
       await dbAsync.run('DELETE FROM game_clicks WHERE game_id = ?', [gameId]);
       
+      // Удаляем связанные записи из таблицы game_files
+      await dbAsync.run('DELETE FROM game_files WHERE game_id = ?', [gameId]);
+      
       // Удаляем связанные записи из таблицы user_games
       await dbAsync.run('DELETE FROM user_games WHERE game_id = ?', [gameId]);
       
@@ -393,6 +406,85 @@ export async function deleteGame(gameId) {
     }
   } catch (error) {
     console.error(`Ошибка при удалении игры с ID ${gameId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Добавление файла игры в базу данных
+ * @param {number} gameId - ID игры
+ * @param {string} filename - Оригинальное имя файла
+ * @param {string} filePath - Путь к сохраненному файлу
+ * @param {number} fileSize - Размер файла в байтах
+ * @returns {Promise<object>} - Информация о добавленном файле
+ */
+export async function addGameFile(gameId, filename, filePath, fileSize) {
+  try {
+    // Создаем таблицу game_files, если она не существует
+    await dbAsync.run(`
+      CREATE TABLE IF NOT EXISTS game_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
+      )
+    `);
+    
+    // Проверяем, существует ли уже файл для этой игры
+    const existingFile = await getGameFile(gameId);
+    
+    // Если файл уже существует, удаляем его
+    if (existingFile) {
+      await dbAsync.run('DELETE FROM game_files WHERE game_id = ?', [gameId]);
+    }
+    
+    // Добавляем новый файл
+    const result = await dbAsync.run(
+      'INSERT INTO game_files (game_id, filename, file_path, file_size) VALUES (?, ?, ?, ?)',
+      [gameId, filename, filePath, fileSize]
+    );
+    
+    return {
+      id: result.lastID,
+      gameId,
+      filename,
+      filePath,
+      fileSize,
+      uploadedAt: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error(`Ошибка при добавлении файла для игры с ID ${gameId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Получение файла игры
+ * @param {number} gameId - ID игры
+ * @returns {Promise<object|null>} - Информация о файле или null, если файл не найден
+ */
+export async function getGameFile(gameId) {
+  try {
+    // Проверяем, существует ли таблица
+    try {
+      await dbAsync.get('SELECT 1 FROM game_files LIMIT 1');
+    } catch (error) {
+      // Если таблица не существует, возвращаем null
+      return null;
+    }
+    
+    // Получаем файл по ID игры
+    const gameFile = await dbAsync.get(
+      'SELECT * FROM game_files WHERE game_id = ?',
+      [gameId]
+    );
+    
+    return gameFile;
+  } catch (error) {
+    console.error(`Ошибка при получении файла для игры с ID ${gameId}:`, error);
     throw error;
   }
 } 

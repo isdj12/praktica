@@ -37,7 +37,8 @@ function AddGameModal({ isOpen = true, onClose, onAddGame, isLoading }) {
     releaseDate: '',
     genre: '',
     image: null,
-    screenshots: []
+    screenshots: [],
+    gameFile: null
   });
 
   const [errors, setErrors] = useState({});
@@ -248,6 +249,36 @@ function AddGameModal({ isOpen = true, onClose, onAddGame, isLoading }) {
     }
   };
 
+  // Обработчик для загрузки файла игры
+  const handleGameFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Проверка на ZIP формат
+      if (!file.name.toLowerCase().endsWith('.zip')) {
+        setErrors({...errors, gameFile: 'Разрешены только ZIP-архивы'});
+        e.target.value = '';
+        return;
+      }
+      
+      // Проверка размера файла (до 50 МБ)
+      if (file.size > 50 * 1024 * 1024) {
+        setErrors({...errors, gameFile: 'Размер файла не должен превышать 50 МБ'});
+        e.target.value = '';
+        return;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        gameFile: file
+      }));
+      
+      // Очистка ошибки, если она была
+      if (errors.gameFile) {
+        setErrors({...errors, gameFile: undefined});
+      }
+    }
+  };
+
   const removeScreenshot = (index) => {
     setFormData(prev => ({
       ...prev,
@@ -355,6 +386,11 @@ function AddGameModal({ isOpen = true, onClose, onAddGame, isLoading }) {
               gameData.append('screenshots', screenshot);
             }
           }
+        }
+        
+        // Добавляем файл игры, если он есть
+        if (formData.gameFile instanceof File) {
+          gameData.append('gameFile', formData.gameFile);
         }
         
         // Вызываем функцию добавления игры
@@ -692,6 +728,23 @@ function AddGameModal({ isOpen = true, onClose, onAddGame, isLoading }) {
                 ))}
               </div>
             )}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="gameFile">Файл игры:</label>
+            <input
+              type="file"
+              id="gameFile"
+              name="gameFile"
+              accept=".zip"
+              onChange={handleGameFileChange}
+              className={errors.gameFile ? 'error' : ''}
+            />
+            {errors.gameFile && <span className="error-message">{errors.gameFile}</span>}
+            <p className="form-helper-text">
+              Загрузите ZIP-архив с вашей игрой. Максимальный размер: 50 МБ.
+              После добавления игры также можно будет загрузить файл на странице игры.
+            </p>
           </div>
           
           <div className="form-actions">
