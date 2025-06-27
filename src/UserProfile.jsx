@@ -20,10 +20,10 @@ import AddGameModal from './component/AddGameModal.jsx';
 // Определяем базовый URL API в зависимости от окружения
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? (process.env.REACT_APP_API_URL || window.location.origin + '/api')
-  : 'http://localhost:3000/api';
+  : 'http://localhost:3002/api';
 
 // Заглушка для отсутствующих изображений
-const FALLBACK_IMAGE = "https://via.placeholder.com/300x150?text=Нет+фото";
+const FALLBACK_IMAGE = "/images/no-image.svg";
 
 function UserProfile() {
   const [searchParams] = useSearchParams();
@@ -85,8 +85,8 @@ function UserProfile() {
           // Проверяем токен через API
           try {
             const response = await fetch(`${process.env.NODE_ENV === 'production' 
-              ? (process.env.REACT_APP_API_URL || window.location.origin + '/api')
-              : 'http://localhost:3000/api'}/profile`, {
+              ? '/api'
+              : 'http://localhost:3002/api'}/profile`, {
               headers: {
                 'Authorization': `Bearer ${token}`
               }

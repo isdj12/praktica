@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { fetchPopularGames } from './api.js'
 
 // URL для Node.js API
-const NODE_API_URL = 'http://localhost:3000/api';
+const NODE_API_URL = 'http://localhost:3002/api';
 
 function App() {
   const navigate = useNavigate();
@@ -49,46 +49,11 @@ function App() {
       try {
         setLoading(true);
         const popularGames = await fetchPopularGames();
-        
-        // Если API не вернуло данные, используем тестовые данные
-        if (popularGames && popularGames.length > 0) {
-          setGames(popularGames);
-        } else {
-          // Тестовые данные для демонстрации
-          setGames([
-            { id: 1, title: "ПОПУЛЯРНАЯ ИГРА 1", image: original, clicks: 120 },
-            { id: 2, title: "ПОПУЛЯРНАЯ ИГРА 2", image: original, clicks: 105 },
-            { id: 3, title: "ПОПУЛЯРНАЯ ИГРА 3", image: original, clicks: 98 },
-            { id: 4, title: "ПОПУЛЯРНАЯ ИГРА 4", image: original, clicks: 87 },
-            { id: 5, title: "ПОПУЛЯРНАЯ ИГРА 5", image: original, clicks: 76 },
-            { id: 6, title: "ПОПУЛЯРНАЯ ИГРА 6", image: original, clicks: 65 },
-            { id: 7, title: "ПОПУЛЯРНАЯ ИГРА 7", image: original, clicks: 54 },
-            { id: 8, title: "ПОПУЛЯРНАЯ ИГРА 8", image: original, clicks: 43 },
-            { id: 9, title: "ПОПУЛЯРНАЯ ИГРА 9", image: original, clicks: 32 },
-            { id: 10, title: "ПОПУЛЯРНАЯ ИГРА 10", image: original, clicks: 21 },
-            { id: 11, title: "ПОПУЛЯРНАЯ ИГРА 11", image: original, clicks: 10 },
-            { id: 12, title: "ПОПУЛЯРНАЯ ИГРА 12", image: original, clicks: 5 },
-          ]);
-        }
+        setGames(popularGames || []);
       } catch (err) {
         console.error('Ошибка при загрузке популярных игр:', err);
         setError('Не удалось загрузить популярные игры');
-        
-        // Используем тестовые данные в случае ошибки
-        setGames([
-          { id: 1, title: "ПОПУЛЯРНАЯ ИГРА 1", image: original, clicks: 120 },
-          { id: 2, title: "ПОПУЛЯРНАЯ ИГРА 2", image: original, clicks: 105 },
-          { id: 3, title: "ПОПУЛЯРНАЯ ИГРА 3", image: original, clicks: 98 },
-          { id: 4, title: "ПОПУЛЯРНАЯ ИГРА 4", image: original, clicks: 87 },
-          { id: 5, title: "ПОПУЛЯРНАЯ ИГРА 5", image: original, clicks: 76 },
-          { id: 6, title: "ПОПУЛЯРНАЯ ИГРА 6", image: original, clicks: 65 },
-          { id: 7, title: "ПОПУЛЯРНАЯ ИГРА 7", image: original, clicks: 54 },
-          { id: 8, title: "ПОПУЛЯРНАЯ ИГРА 8", image: original, clicks: 43 },
-          { id: 9, title: "ПОПУЛЯРНАЯ ИГРА 9", image: original, clicks: 32 },
-          { id: 10, title: "ПОПУЛЯРНАЯ ИГРА 10", image: original, clicks: 21 },
-          { id: 11, title: "ПОПУЛЯРНАЯ ИГРА 11", image: original, clicks: 10 },
-          { id: 12, title: "ПОПУЛЯРНАЯ ИГРА 12", image: original, clicks: 5 },
-        ]);
+        setGames([]);
       } finally {
         setLoading(false);
       }
@@ -172,17 +137,27 @@ function App() {
           <div className="loading-games">Загрузка популярных игр...</div>
         ) : error ? (
           <div className="error-message">{error}</div>
+        ) : games.length === 0 ? (
+          <div className="no-games-message">Популярные игры отсутствуют. Добавьте игры в каталог.</div>
         ) : (
           <div className={`games-grid ${isTransitioning ? 'fade-out' : 'fade-in'}`}>
             {getCurrentPageGames().map((game) => (
               <div key={game.id} className="game-card-container" onClick={() => handleGameClick(game.id)}>
                 <div className="game-indicator">
                   <div className="game-title-bar">
-                    {game.title}
+                    {game.name || game.title}
                     {game.clicks && <span className="game-clicks">👁 {game.clicks}</span>}
                   </div>
                   <div className='game-indicator-foto'>
-                    <img src={game.image} alt={game.title} className='foto single-foto' />
+                    <img 
+                      src={game.image} 
+                      alt={game.name || game.title} 
+                      className='foto single-foto'
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "/images/no-image.svg";
+                      }}
+                    />
                   </div>
                 </div>
               </div>

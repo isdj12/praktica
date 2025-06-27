@@ -354,36 +354,49 @@ function AddGameModal({ isOpen = true, onClose, onAddGame, isLoading }) {
         gameData.append('name', formData.name.trim());
         gameData.append('description', formData.description.trim());
         
+        console.log('Отправка формы добавления игры:');
+        console.log('Название:', formData.name.trim());
+        console.log('Описание:', formData.description.trim());
+        
         // Добавляем теги (максимум 3)
         for (let i = 0; i < Math.min(formData.tags.length, 3); i++) {
           gameData.append(`tag${i+1}`, formData.tags[i]);
+          console.log(`Тег ${i+1}:`, formData.tags[i]);
         }
         
         gameData.append('platform', formData.platform.trim());
         gameData.append('multiplayer', formData.multiplayer);
+        console.log('Платформа:', formData.platform.trim());
+        console.log('Мультиплеер:', formData.multiplayer);
         
         if (formData.ageRating) {
           gameData.append('ageRating', formData.ageRating);
+          console.log('Возрастной рейтинг:', formData.ageRating);
         }
         
         if (formData.releaseDate) {
           gameData.append('releaseDate', formData.releaseDate);
+          console.log('Дата выпуска:', formData.releaseDate);
         }
         
         gameData.append('genre', formData.genre.trim());
+        console.log('Жанр:', formData.genre.trim());
         
         // Добавляем основное изображение
         gameData.append('image', formData.image);
+        console.log('Изображение:', formData.image.name);
         
         // Добавляем скриншоты (максимум 3)
         if (formData.screenshots && formData.screenshots.length > 0) {
           const maxScreenshots = Math.min(formData.screenshots.length, 3);
+          console.log(`Добавляем ${maxScreenshots} скриншотов`);
           
           for (let i = 0; i < maxScreenshots; i++) {
             const screenshot = formData.screenshots[i];
             if (screenshot instanceof File) {
               // Используем простые имена файлов
               gameData.append('screenshots', screenshot);
+              console.log(`Скриншот ${i+1}:`, screenshot.name);
             }
           }
         }
@@ -391,12 +404,16 @@ function AddGameModal({ isOpen = true, onClose, onAddGame, isLoading }) {
         // Добавляем файл игры, если он есть
         if (formData.gameFile instanceof File) {
           gameData.append('gameFile', formData.gameFile);
+          console.log('Файл игры:', formData.gameFile.name);
         }
+        
+        console.log('Вызываем функцию добавления игры...');
         
         // Вызываем функцию добавления игры
         onAddGame(gameData)
-          .then(() => {
+          .then((response) => {
             // Успешное добавление игры
+            console.log('Игра успешно добавлена:', response);
             setIsSubmitting(false);
             // Остальная логика обработки успеха уже в родительском компоненте
           })

@@ -49,129 +49,79 @@ async function saveGames(games) {
  */
 export async function addGame(gameData) {
   try {
-    // Проверяем, существует ли таблица games с нужной структурой
-    try {
-      // Пробуем получить информацию о структуре таблицы
-      const tableInfo = await dbAsync.all("PRAGMA table_info(games)");
-      console.log("Структура таблицы games:", tableInfo);
-      
-      // Проверяем, есть ли нужные столбцы
-      const hasNameColumn = tableInfo.some(column => column.name === 'name');
-      
-      // Если нужной структуры нет, удаляем таблицу и создаем заново
-      if (!hasNameColumn) {
-        console.log("Таблица games существует, но не имеет нужной структуры. Пересоздаем таблицу...");
-        await dbAsync.run("DROP TABLE IF EXISTS game_tags");
-        await dbAsync.run("DROP TABLE IF EXISTS game_screenshots");
-        await dbAsync.run("DROP TABLE IF EXISTS game_clicks");
-        await dbAsync.run("DROP TABLE IF EXISTS games");
-      }
-    } catch (error) {
-      console.error("Ошибка при проверке структуры таблицы:", error);
-      // В случае ошибки, пробуем пересоздать таблицу
-      await dbAsync.run("DROP TABLE IF EXISTS game_tags");
-      await dbAsync.run("DROP TABLE IF EXISTS game_screenshots");
-      await dbAsync.run("DROP TABLE IF EXISTS game_clicks");
-      await dbAsync.run("DROP TABLE IF EXISTS games");
+    console.log('Начинаем добавление игры в БД...');
+    
+    // Проверяем формат даты createdAt
+    let createdAt = gameData.createdAt;
+    if (typeof createdAt === 'string' && createdAt.includes('T')) {
+      // Преобразуем ISO формат в MySQL формат
+      createdAt = createdAt.slice(0, 19).replace('T', ' ');
+      console.log('Преобразованная дата:', createdAt);
     }
     
-    // Создаем таблицу games, если она не существует
-    await dbAsync.run(`
-      CREATE TABLE IF NOT EXISTS games (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        platform TEXT,
-        multiplayer TEXT,
-        genre TEXT,
-        ageRating TEXT,
-        releaseDate TEXT,
-        image TEXT,
-        userId INTEGER,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (userId) REFERENCES users (id) ON DELETE SET NULL
-      )
-    `);
-    
-    // Создаем таблицу game_tags, если она не существует
-    await dbAsync.run(`
-      CREATE TABLE IF NOT EXISTS game_tags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        game_id INTEGER NOT NULL,
-        tag TEXT NOT NULL,
-        FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
-      )
-    `);
-    
-    // Создаем таблицу game_screenshots, если она не существует
-    await dbAsync.run(`
-      CREATE TABLE IF NOT EXISTS game_screenshots (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        game_id INTEGER NOT NULL,
-        screenshot_url TEXT NOT NULL,
-        FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
-      )
-    `);
-    
-    // Создаем таблицу game_clicks для отслеживания кликов, если она не существует
-    await dbAsync.run(`
-      CREATE TABLE IF NOT EXISTS game_clicks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        game_id INTEGER NOT NULL,
-        click_count INTEGER DEFAULT 0,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
-      )
-    `);
-    
     // Вставляем данные игры в таблицу games
-    const result = await dbAsync.run(
-      `INSERT INTO games (name, description, platform, multiplayer, genre, ageRating, releaseDate, image, userId, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        gameData.name,
-        gameData.description,
-        gameData.platform,
-        gameData.multiplayer,
-        gameData.genre,
-        gameData.ageRating,
-        gameData.releaseDate,
-        gameData.image,
-        gameData.userId,
-        gameData.createdAt
-      ]
-    );
+    const insertGameQuery = `
+      INSERT INTO games (
+        name, description, platform, multiplayer, 
+        genre, ageRating, releaseDate, image, 
+        userId, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
     
+    const gameValues = [
+      gameData.name,
+      gameData.description,
+      gameData.platform,
+      gameData.multiplayer,
+      gameData.genre,
+      gameData.ageRating,
+      gameData.releaseDate,
+      gameData.image,
+      gameData.userId,
+      createdAt
+    ];
+    
+    console.log('SQL запрос для добавления игры:', insertGameQuery);
+    console.log('Значения для запроса:', gameValues);
+    
+    const result = await dbAsync.run(insertGameQuery, gameValues);
     const gameId = result.lastID;
+    console.log(`Игра добавлена с ID: ${gameId}`);
     
     // Инициализируем счетчик кликов для новой игры
     await dbAsync.run(
       'INSERT INTO game_clicks (game_id, click_count) VALUES (?, ?)',
       [gameId, 0]
     );
+    console.log('Счетчик кликов инициализирован');
     
     // Добавляем теги
     if (gameData.tags && gameData.tags.length > 0) {
+      console.log(`Добавляем ${gameData.tags.length} тегов`);
       for (const tag of gameData.tags) {
         await dbAsync.run(
           'INSERT INTO game_tags (game_id, tag) VALUES (?, ?)',
           [gameId, tag]
         );
       }
+      console.log('Теги добавлены');
     }
     
     // Добавляем скриншоты
     if (gameData.screenshots && gameData.screenshots.length > 0) {
+      console.log(`Добавляем ${gameData.screenshots.length} скриншотов`);
       for (const screenshot of gameData.screenshots) {
         await dbAsync.run(
           'INSERT INTO game_screenshots (game_id, screenshot_url) VALUES (?, ?)',
           [gameId, screenshot]
         );
       }
+      console.log('Скриншоты добавлены');
     }
     
     // Получаем добавленную игру
     const game = await getGameById(gameId);
+    console.log('Получены данные добавленной игры:', game);
     return game;
   } catch (error) {
     console.error('Ошибка при добавлении игры в каталог:', error);
@@ -374,7 +324,7 @@ export async function incrementGameClicks(gameId) {
 export async function deleteGame(gameId) {
   try {
     // Начинаем транзакцию для обеспечения целостности данных
-    await dbAsync.run('BEGIN TRANSACTION');
+    await dbAsync.run('START TRANSACTION');
     
     try {
       // Удаляем связанные записи из таблицы game_tags
@@ -423,14 +373,14 @@ export async function addGameFile(gameId, filename, filePath, fileSize) {
     // Создаем таблицу game_files, если она не существует
     await dbAsync.run(`
       CREATE TABLE IF NOT EXISTS game_files (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        game_id INTEGER NOT NULL,
-        filename TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        file_size INTEGER NOT NULL,
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        game_id INT NOT NULL,
+        filename VARCHAR(255) NOT NULL,
+        file_path VARCHAR(255) NOT NULL,
+        file_size INT NOT NULL,
         uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
-      )
+        FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     
     // Проверяем, существует ли уже файл для этой игры

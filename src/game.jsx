@@ -329,7 +329,7 @@ function Game() {
                     alt={game.name} 
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = "https://via.placeholder.com/600x400?text=Изображение+не+найдено";
+                      e.target.src = "/images/no-image.svg";
                     }}
                   />
                 </div>
@@ -345,7 +345,7 @@ function Game() {
                         alt="Главное изображение" 
                         onError={(e) => {
                           e.target.onerror = null;
-                          e.target.src = "https://via.placeholder.com/100x60?text=Фото";
+                          e.target.src = "/images/no-image-thumb.svg";
                         }}
                       />
                     </div>
@@ -360,7 +360,7 @@ function Game() {
                           alt={`Скриншот ${index + 1}`}
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = "https://via.placeholder.com/100x60?text=Скриншот";
+                            e.target.src = "/images/no-screenshot-thumb.svg";
                           }}
                         />
                       </div>

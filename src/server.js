@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { dbAsync } from './database/db.js';
+import ensureUploadDirs from './ensure-upload-dirs.js';
 
 // Загружаем переменные окружения
 dotenv.config();
@@ -21,24 +22,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Создаем директории для загрузки файлов, если они не существуют
+// Определяем пути к директориям для загрузки файлов
 const uploadsDir = path.join(__dirname, '../public/uploads');
 const gameImagesDir = path.join(uploadsDir, 'games');
 const screenshotsDir = path.join(uploadsDir, 'screenshots');
 const gameFilesDir = path.join(uploadsDir, 'gamefiles');
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-if (!fs.existsSync(gameImagesDir)) {
-  fs.mkdirSync(gameImagesDir, { recursive: true });
-}
-if (!fs.existsSync(screenshotsDir)) {
-  fs.mkdirSync(screenshotsDir, { recursive: true });
-}
-if (!fs.existsSync(gameFilesDir)) {
-  fs.mkdirSync(gameFilesDir, { recursive: true });
-}
+// Проверяем и создаем директории для загрузки файлов
+ensureUploadDirs();
 
 // Настройка хранилища для загрузки файлов
 const storage = multer.diskStorage({
@@ -364,12 +355,20 @@ app.post('/api/games', authMiddleware, upload.fields([
   { name: 'gameFile', maxCount: 1 }
 ]), asyncHandler(async (req, res) => {
   try {
-    console.log('Получен запрос на добавление игры:', req.body);
+    console.log('=== НАЧАЛО ОБРАБОТКИ ДОБАВЛЕНИЯ ИГРЫ ===');
+    console.log('Получен запрос на добавление игры:');
+    console.log('Тело запроса:', req.body);
     console.log('Файлы:', req.files);
     
     // Проверяем наличие обязательных полей
-    if (!req.body.name || !req.body.description || !req.body.platform || !req.body.genre || !req.files || !req.files.image) {
+    if (!req.body.name || !req.body.description || !req.body.platform || !req.body.genre) {
+      console.log('ОШИБКА: Не все обязательные поля заполнены');
       return res.status(400).json({ message: 'Не все обязательные поля заполнены' });
+    }
+
+    if (!req.files || !req.files.image) {
+      console.log('ОШИБКА: Отсутствует изображение игры');
+      return res.status(400).json({ message: 'Необходимо загрузить изображение игры' });
     }
 
     // Формируем данные для новой игры
@@ -383,38 +382,69 @@ app.post('/api/games', authMiddleware, upload.fields([
       releaseDate: req.body.releaseDate || null,
       image: `/uploads/games/${req.files.image[0].filename}`,
       userId: req.user.id, // ID пользователя, добавившего игру
-      createdAt: new Date().toISOString(),
-      tags: req.body.tags ? JSON.parse(req.body.tags) : [],
-      screenshots: req.files.screenshots ? req.files.screenshots.map(file => `/uploads/screenshots/${file.filename}`) : []
+      createdAt: new Date().toISOString().slice(0, 19).replace('T', ' '), // MySQL формат даты
+      tags: [],
+      screenshots: []
     };
 
-    // Сохраняем игру в локальной базе данных
-    console.log('Сохраняем игру в БД:', gameData);
-    const newGame = await addGame(gameData);
-    
-    // Добавляем игру в профиль пользователя
-    await addGameToUserProfile(
-      req.user.id,
-      newGame.id,
-      newGame.name,
-      newGame.image
-    );
-    
-    // Если загружен файл игры, сохраняем его
-    if (req.files.gameFile && req.files.gameFile.length > 0) {
-      const gameFile = req.files.gameFile[0];
-      const { originalname, filename, size } = gameFile;
-      
-      // Путь относительно публичной директории
-      const relativePath = `/uploads/gamefiles/${filename}`;
-      
-      // Сохраняем информацию о файле в базе данных
-      await addGameFile(newGame.id, originalname, relativePath, size);
+    // Обработка тегов
+    console.log('Обработка тегов...');
+    if (req.body.tag1) gameData.tags.push(req.body.tag1);
+    if (req.body.tag2) gameData.tags.push(req.body.tag2);
+    if (req.body.tag3) gameData.tags.push(req.body.tag3);
+
+    // Обработка скриншотов
+    console.log('Обработка скриншотов...');
+    if (req.files.screenshots && req.files.screenshots.length > 0) {
+      gameData.screenshots = req.files.screenshots.map(file => `/uploads/screenshots/${file.filename}`);
     }
-    
-    res.status(201).json(newGame);
+
+    // Сохраняем игру в базе данных
+    console.log('Сохраняем игру в БД:', gameData);
+    try {
+      const newGame = await addGame(gameData);
+      console.log('Игра успешно добавлена в БД:', newGame);
+      
+      // Добавляем игру в профиль пользователя
+      try {
+        await addGameToUserProfile(
+          req.user.id,
+          newGame.id,
+          newGame.name,
+          newGame.image
+        );
+        console.log('Игра добавлена в профиль пользователя');
+      } catch (profileError) {
+        console.error('Ошибка при добавлении игры в профиль:', profileError);
+        // Продолжаем выполнение, даже если не удалось добавить в профиль
+      }
+      
+      // Если загружен файл игры, сохраняем его
+      if (req.files.gameFile && req.files.gameFile.length > 0) {
+        try {
+          const gameFile = req.files.gameFile[0];
+          const { originalname, filename, size } = gameFile;
+          
+          // Путь относительно публичной директории
+          const relativePath = `/uploads/gamefiles/${filename}`;
+          
+          // Сохраняем информацию о файле в базе данных
+          await addGameFile(newGame.id, originalname, relativePath, size);
+          console.log('Файл игры успешно сохранен');
+        } catch (fileError) {
+          console.error('Ошибка при сохранении файла игры:', fileError);
+          // Продолжаем выполнение, даже если не удалось сохранить файл
+        }
+      }
+      
+      console.log('=== УСПЕШНОЕ ЗАВЕРШЕНИЕ ДОБАВЛЕНИЯ ИГРЫ ===');
+      res.status(201).json(newGame);
+    } catch (dbError) {
+      console.error('Ошибка при сохранении игры в БД:', dbError);
+      res.status(500).json({ message: `Ошибка при сохранении игры: ${dbError.message}` });
+    }
   } catch (error) {
-    console.error('Ошибка при добавлении игры в каталог:', error);
+    console.error('=== ОШИБКА ПРИ ДОБАВЛЕНИИ ИГРЫ ===', error);
     res.status(500).json({ message: error.message });
   }
 }));
@@ -604,6 +634,10 @@ app.get(['/', '/*'], (req, res, next) => {
 // Запуск сервера
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
+  const dbType = 'mysql';
+  const dbTypeFormatted = 'MySQL';
+
+  console.log(`Используется база данных: ${dbTypeFormatted}`);
 });
 
 export default app; 

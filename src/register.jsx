@@ -39,7 +39,7 @@ function Register() {
       setError("");
       
       // Отправляем запрос к API для регистрации
-      const response = await fetch('http://localhost:3000/api/register', {
+      const response = await fetch('http://localhost:3002/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

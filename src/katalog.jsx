@@ -296,7 +296,7 @@ function Katalog() {
                         className="game-card-image" 
                         onError={(e) => {
                           e.target.onerror = null;
-                          e.target.src = "https://via.placeholder.com/300x150?text=Нет+фото";
+                          e.target.src = "/images/no-image.svg";
                         }}
                       />
                     </div>

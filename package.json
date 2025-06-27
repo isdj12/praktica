@@ -11,7 +11,11 @@
     "client": "cd frontend && npm start",
     "server": "nodemon src/server.js",
     "dev:full": "concurrently \"npm run server\" \"npm run client\"",
-    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm run build"
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm run build",
+    "migrate-to-mysql": "node migrate-to-mysql.js",
+    "use-mysql": "node switch-database.js mysql",
+    "use-sqlite": "node switch-database.js sqlite",
+    "db-help": "echo \"Команды для работы с базой данных: npm run use-mysql - Проверить подключение к MySQL\""
   },
   "engines": {
     "node": ">=16.0.0"
@@ -25,6 +29,8 @@
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.14.1",
+    "promise-mysql": "^5.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
@@ -34,6 +40,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "nodemon": "^3.1.10"
   }
 }

@@ -2,8 +2,8 @@
 
 // Определяем базовый URL API в зависимости от окружения
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? (process.env.REACT_APP_API_URL || window.location.origin + '/api')
-  : 'http://localhost:3000/api';
+  ? '/api'
+  : 'http://localhost:3002/api';
 
 // Локальное хранилище для закладок, пока нет серверного API
 const LOCAL_BOOKMARKS_KEY = 'user_bookmarks';
@@ -199,17 +199,36 @@ export async function isGameInProfile(gameId) {
 // Добавить новую игру в каталог
 export const addGameToCatalog = async (gameData, token) => {
   try {
+    console.log('=== НАЧАЛО ЗАПРОСА НА ДОБАВЛЕНИЕ ИГРЫ ===');
+    
     if (!token) {
+      console.error('Ошибка: Отсутствует токен авторизации');
       throw new Error('Требуется авторизация');
     }
     
     if (!gameData) {
+      console.error('Ошибка: Отсутствуют данные игры');
       throw new Error('Отсутствуют данные игры');
     }
 
     // Проверяем, что gameData - это FormData
     if (!(gameData instanceof FormData)) {
+      console.error('Ошибка: Неверный формат данных');
       throw new Error('Неверный формат данных для загрузки');
+    }
+    
+    console.log('API URL:', `${API_BASE_URL}/games`);
+    console.log('Метод:', 'POST');
+    console.log('Токен авторизации:', token.substring(0, 10) + '...');
+    
+    // Отладка содержимого FormData
+    console.log('Содержимое FormData:');
+    for (let pair of gameData.entries()) {
+      if (pair[0] === 'image' || pair[0] === 'screenshots' || pair[0] === 'gameFile') {
+        console.log(pair[0], ':', pair[1].name);
+      } else {
+        console.log(pair[0], ':', pair[1]);
+      }
     }
     
     // Отправляем FormData как есть, без дополнительной обработки
@@ -221,14 +240,25 @@ export const addGameToCatalog = async (gameData, token) => {
       body: gameData
     });
 
+    console.log('Статус ответа:', response.status);
+    
     if (!response.ok) {
+      // Пытаемся получить текст ошибки
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        console.error('Текст ошибки:', errorText);
+      } catch (e) {
+        console.error('Не удалось получить текст ошибки');
+      }
+      
       // Обработка типичных ошибок сервера
       if (response.status === 413) {
         throw new Error('Файлы слишком большие. Максимальный размер - 1МБ');
       } else if (response.status === 415) {
         throw new Error('Неподдерживаемый формат файлов. Используйте JPEG или PNG');
       } else if (response.status === 400) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ message: errorText || 'Ошибка валидации данных' }));
         if (errorData.error && errorData.error.includes('Unexpected field')) {
           throw new Error('Ошибка загрузки файлов: неверное имя поля');
         }
@@ -238,14 +268,16 @@ export const addGameToCatalog = async (gameData, token) => {
       } else if (response.status === 403) {
         throw new Error('Недостаточно прав для выполнения операции');
       } else {
-        throw new Error('Ошибка при добавлении игры');
+        throw new Error(`Ошибка при добавлении игры: ${errorText || response.statusText}`);
       }
     }
 
     const result = await response.json();
+    console.log('Успешный ответ:', result);
+    console.log('=== КОНЕЦ ЗАПРОСА НА ДОБАВЛЕНИЕ ИГРЫ ===');
     return result;
   } catch (error) {
-    console.error('Ошибка при добавлении игры:', error);
+    console.error('=== ОШИБКА ЗАПРОСА НА ДОБАВЛЕНИЕ ИГРЫ ===', error);
     throw error;
   }
 };
