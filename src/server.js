@@ -19,7 +19,7 @@ dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Определяем пути к директориям для загрузки файлов
@@ -72,19 +72,17 @@ const upload = multer({
   }
 });
 
-// Настройка CORS для разных окружений
-const corsOptions = {
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.ALLOWED_ORIGINS?.split(',') || true
-    : true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+// Настройка CORS
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.CLIENT_URL 
+    : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
-  maxAge: 86400 // кэширование preflight запросов на 24 часа
-};
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Middleware
-app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
@@ -634,10 +632,12 @@ app.get(['/', '/*'], (req, res, next) => {
 // Запуск сервера
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
-  const dbType = 'mysql';
-  const dbTypeFormatted = 'MySQL';
-
-  console.log(`Используется база данных: ${dbTypeFormatted}`);
+  console.log(`Режим: ${process.env.NODE_ENV || 'development'}`);
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`Клиент: ${process.env.CLIENT_URL}`);
+  } else {
+    console.log('Клиент: http://localhost:5173');
+  }
 });
 
 export default app; 
